@@ -51,8 +51,5 @@ Windows/    Windows 앱 (Python / web UI)
 docs/       번역된 README 파일
 ```
 
-## 🔐 보안 및 라이선스
-
 비밀번호, 비공개 토큰, 서명 키를 커밋하지 마세요. 재배포 전에 `LICENSE` 파일과 타사 구성 요소의 라이선스를 확인하세요.
-
 [GitHub 저장소](https://github.com/omidrx0/RxFoxyVPN)

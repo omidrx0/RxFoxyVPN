@@ -19,6 +19,9 @@
 
 [English](README.md) · [فارسی](docs/README.fa.md) · [Русский](docs/README.ru.md) · [简体中文](docs/README.zh.md) · [한국어](docs/README.ko.md) · [العربية](docs/README.ar.md)
 
+> ### 🚀 Explore RXFoxyVPN on GitHub
+> **[Open the repository](https://github.com/omidrx0/RxFoxyVPN)** · [Latest release](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [Report an issue](https://github.com/omidrx0/RxFoxyVPN/issues)
+
 </div>
 
 ---
@@ -85,12 +88,7 @@ docs/       Translated README files
 
 Build steps can vary by project configuration and environment; use the configuration files in the repository as the source of truth.
 
-## 🔐 Security
-
-- Never commit passwords, private tokens, signing keys, keystores, or personal configuration files.
 - Review third-party components and their licenses before redistribution.
-- Do not assume a VPN provides complete anonymity or protection against every threat.
-
 ## 🤝 Contributing
 
 Suggestions, bug reports, and improvements are welcome. If you have access to this private repository, open an issue or submit a pull request.
