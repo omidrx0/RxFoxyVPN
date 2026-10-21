@@ -51,5 +51,16 @@ Windows/    تطبيق Windows (Python / web UI)
 docs/       ملفات README المترجمة
 ```
 
+## 🔐 الأمان والترخيص
+
 لا ترفع كلمات المرور أو الرموز الخاصة أو مفاتيح التوقيع. تحقق من ملف `LICENSE` وتراخيص المكونات الخارجية قبل إعادة التوزيع.
+
 [المستودع على GitHub](https://github.com/omidrx0/RxFoxyVPN)
+
+## 📥 استنساخ المستودع باستخدام Git
+
+```bash
+git clone https://github.com/omidrx0/RxFoxyVPN.git
+cd RxFoxyVPN
+```
+

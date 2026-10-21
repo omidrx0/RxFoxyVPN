@@ -51,5 +51,16 @@ Windows/    Windows 应用（Python / web UI）
 docs/       多语言 README
 ```
 
+## 🔐 安全与许可
+
 请勿提交密码、私有令牌或签名密钥。重新分发前，请检查 `LICENSE` 文件及第三方组件的许可证。
+
 [GitHub 仓库](https://github.com/omidrx0/RxFoxyVPN)
+
+## 📥 使用 Git 克隆仓库
+
+```bash
+git clone https://github.com/omidrx0/RxFoxyVPN.git
+cd RxFoxyVPN
+```
+

@@ -51,5 +51,16 @@ Windows/    Приложение Windows (Python / web UI)
 docs/       Переведённые README
 ```
 
+## 🔐 Безопасность и лицензия
+
 Не добавляйте пароли, приватные токены и ключи подписи. Перед распространением проверьте файл `LICENSE` и лицензии сторонних компонентов.
+
 [Репозиторий на GitHub](https://github.com/omidrx0/RxFoxyVPN)
+
+## 📥 Клонирование репозитория
+
+```bash
+git clone https://github.com/omidrx0/RxFoxyVPN.git
+cd RxFoxyVPN
+```
+
