@@ -55,16 +55,13 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
 حداقل نسخهٔ پشتیبانی‌شده: **اندروید ۸٫۰**.
 
 <div align="center">
-  <table>
+  <table width="560">
     <tr>
-      <td align="center"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="صفحهٔ اصلی اندروید" width="220"></td>
-      <td align="center"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="فهرست سرورها در اندروید" width="220"></td>
-      <td align="center"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="تنظیمات اندروید" width="220"></td>
+      <td align="center" width="50%"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="صفحهٔ اصلی اندروید" width="100%"><br><sub><b>صفحهٔ اصلی</b></sub></td>
+      <td align="center" width="50%"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="فهرست سرورها در اندروید" width="100%"><br><sub><b>فهرست سرورها</b></sub></td>
     </tr>
     <tr>
-      <td align="center"><sub>صفحهٔ اصلی</sub></td>
-      <td align="center"><sub>فهرست سرورها</sub></td>
-      <td align="center"><sub>تنظیمات</sub></td>
+      <td align="center" colspan="2"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="تنظیمات اندروید" width="50%"><br><sub><b>تنظیمات</b></sub></td>
     </tr>
   </table>
 </div>
