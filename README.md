@@ -1,35 +1,85 @@
-# RXFoxyVPN
+<div align="center">
 
-[English](README.md) | [فارسی](docs/README.fa.md) | [Русский](docs/README.ru.md) | [简体中文](docs/README.zh.md) | [한국어](docs/README.ko.md) | [العربية](docs/README.ar.md)
+# 🦊 RXFoxyVPN
 
-> A multi-platform VPN client for Android and Windows, with a multilingual interface.
+### Your connection. Your choice.
 
-![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows-blue) ![Version](https://img.shields.io/badge/version-1.0.0-red)
+**A VPN client for Windows and Android**
 
-## Features
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-168BFF?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN)
+[![Version](https://img.shields.io/badge/version-v1.0.0-7C3AED?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN/releases)
+[![Languages](https://img.shields.io/badge/interface-multilingual-0EA5A4?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN)
 
-Android and Windows applications; interface translations for English, Persian, Russian, Simplified Chinese, Korean and Arabic; Android VPN service; Windows desktop interface and tray integration.
+**[Download latest release](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [Source code](https://github.com/omidrx0/RxFoxyVPN) · [فارسی](docs/README.fa.md)**
 
-## Project structure
+</div>
 
-```text
-Android/    Android application (Kotlin / Gradle)
-Windows/    Windows application (Python / web UI)
-docs/       Translated README files
-```
+---
 
-## Getting started
+## ✨ About RXFoxyVPN
 
-Clone the repository. Open `Android/` in Android Studio to build the Android app. For Windows, review the source and packaging scripts under `Windows/` and install the required Python dependencies before running `python -m rxvpn` from the appropriate application directory. Build requirements and third-party components may need additional setup.
+RXFoxyVPN is a cross-platform VPN client project for **Windows** and **Android**, with a clean interface and multilingual README documentation. This repository contains the project source code; ready-to-use builds, when published, are available from GitHub Releases.
+
+## 🖥️ Windows
+
+<p align="center">
+  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN for Windows" width="850">
+</p>
+
+The Windows edition provides a desktop interface. See the latest release page for the available Windows executable and ZIP package.
+
+## 📱 Android
+
+### Home
+<p align="center">
+  <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="RXFoxyVPN Android home screen" width="300">
+</p>
+
+### Server list
+<p align="center">
+  <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="RXFoxyVPN Android server list" width="300">
+</p>
+
+### Settings
+<p align="center">
+  <img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="RXFoxyVPN Android settings screen" width="300">
+</p>
+
+## 📥 Download
+
+Visit **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** and choose the file for your platform.
+
+- **Android:** APK package (install only if you trust the source; Android may ask you to allow installation from your browser or file manager).
+- **Windows:** EXE portable build or ZIP package, if listed in the release.
+- **Source code:** browse or clone this repository.
+
+> The release page is the source of truth for the latest version and available files.
+
+## 🧰 Source code
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/RXFoxyVPN.git
+git clone https://github.com/omidrx0/RxFoxyVPN.git
 ```
 
-## Downloads
+- Android project: open the Android project in Android Studio.
+- Windows project: review the Windows source and its packaging instructions before building.
 
-Check GitHub Releases for published builds. Source code is not an installer.
+Build steps may depend on the tools and dependencies used by the current source tree.
 
-## Security and licensing
+## 🌐 README languages
 
-Do not commit credentials, signing keys or private configurations. Review third-party component licenses before redistribution. A repository-wide license has not yet been selected.
+[English](README.md) · [فارسی](docs/README.fa.md) · [العربية](docs/README.ar.md) · [Русский](docs/README.ru.md) · [简体中文](docs/README.zh.md) · [한국어](docs/README.ko.md)
+
+## 🔐 Security and licensing
+
+Never commit passwords, API secrets, signing keys, keystores, or private configuration. Review the project and third-party component licenses before redistribution. Unless a license file is added to this repository, do not assume the source code is licensed for unrestricted reuse.
+
+---
+
+<div align="center">
+
+**RXFoxyVPN** · Windows & Android
+
+[GitHub repository](https://github.com/omidrx0/RxFoxyVPN) · [Releases & downloads](https://github.com/omidrx0/RxFoxyVPN/releases)
+
+</div>
