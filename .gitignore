@@ -1,0 +1,19 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+local.properties
+# Build outputs and caches
+.gradle/
+.idea/
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+*.apk
+*.aab
+.DS_Store

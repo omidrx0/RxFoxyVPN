@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.idea/
+
+# build output
+build/
+dist/
+
+# downloaded and SHA-256 verified by packaging/prepare_tun_runtime.ps1 (licenses stay in git)
+runtime/sing-box.exe
+runtime/wintun.dll
