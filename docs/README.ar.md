@@ -55,13 +55,16 @@ RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Wind
 الحد الأدنى للإصدار المدعوم: **Android 8.0**.
 
 <div align="center">
-  <table width="560">
+  <table width="100%">
     <tr>
-      <td align="center" width="50%"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="الشاشة الرئيسية في Android" width="100%"><br><sub><b>الرئيسية</b></sub></td>
-      <td align="center" width="50%"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="قائمة الخوادم في Android" width="100%"><br><sub><b>قائمة الخوادم</b></sub></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="الشاشة الرئيسية في Android" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="قائمة الخوادم في Android" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="إعدادات Android" width="100%"></a></td>
     </tr>
     <tr>
-      <td align="center" colspan="2"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="إعدادات Android" width="50%"><br><sub><b>الإعدادات</b></sub></td>
+      <td align="center"><sub><b>الرئيسية</b></sub></td>
+      <td align="center"><sub><b>قائمة الخوادم</b></sub></td>
+      <td align="center"><sub><b>الإعدادات</b></sub></td>
     </tr>
   </table>
 </div>

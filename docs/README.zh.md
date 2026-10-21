@@ -53,13 +53,16 @@ RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简�
 最低支持版本：**Android 8.0**。
 
 <div align="center">
-  <table width="560">
+  <table width="100%">
     <tr>
-      <td align="center" width="50%"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android 主页" width="100%"><br><sub><b>主页</b></sub></td>
-      <td align="center" width="50%"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android 服务器列表" width="100%"><br><sub><b>服务器列表</b></sub></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android 主页" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android 服务器列表" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android 设置页面" width="100%"></a></td>
     </tr>
     <tr>
-      <td align="center" colspan="2"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android 设置页面" width="50%"><br><sub><b>设置</b></sub></td>
+      <td align="center"><sub><b>主页</b></sub></td>
+      <td align="center"><sub><b>服务器列表</b></sub></td>
+      <td align="center"><sub><b>设置</b></sub></td>
     </tr>
   </table>
 </div>

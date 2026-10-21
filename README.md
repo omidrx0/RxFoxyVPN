@@ -53,13 +53,16 @@ RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built aro
 Minimum supported version: **Android 8.0**.
 
 <div align="center">
-  <table width="560">
+  <table width="100%">
     <tr>
-      <td align="center" width="50%"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android home screen" width="100%"><br><sub><b>Home</b></sub></td>
-      <td align="center" width="50%"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android server list" width="100%"><br><sub><b>Server list</b></sub></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android home screen" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android server list" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android settings screen" width="100%"></a></td>
     </tr>
     <tr>
-      <td align="center" colspan="2"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android settings screen" width="50%"><br><sub><b>Settings</b></sub></td>
+      <td align="center"><sub><b>Home</b></sub></td>
+      <td align="center"><sub><b>Server list</b></sub></td>
+      <td align="center"><sub><b>Settings</b></sub></td>
     </tr>
   </table>
 </div>

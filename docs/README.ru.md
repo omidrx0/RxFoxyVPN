@@ -53,13 +53,16 @@ RXFoxyVPN — кроссплатформенный проект для **Android
 Минимальная поддерживаемая версия: **Android 8.0**.
 
 <div align="center">
-  <table width="560">
+  <table width="100%">
     <tr>
-      <td align="center" width="50%"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Главный экран Android" width="100%"><br><sub><b>Главный экран</b></sub></td>
-      <td align="center" width="50%"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Список серверов Android" width="100%"><br><sub><b>Список серверов</b></sub></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Главный экран Android" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Список серверов Android" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Настройки Android" width="100%"></a></td>
     </tr>
     <tr>
-      <td align="center" colspan="2"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Настройки Android" width="50%"><br><sub><b>Настройки</b></sub></td>
+      <td align="center"><sub><b>Главный экран</b></sub></td>
+      <td align="center"><sub><b>Список серверов</b></sub></td>
+      <td align="center"><sub><b>Настройки</b></sub></td>
     </tr>
   </table>
 </div>
