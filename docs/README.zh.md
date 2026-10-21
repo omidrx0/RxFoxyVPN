@@ -31,6 +31,8 @@
 <div align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="Windows 版 RXFoxyVPN" width="88%"></div>
 
 ### Android
+
+**最低支持版本：Android 8.0 及以上。**
 <div align="center">
 <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="主页" width="28%">
 <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="服务器列表" width="28%">
@@ -49,18 +51,5 @@
 Android/    Android 应用（Kotlin / Gradle）
 Windows/    Windows 应用（Python / web UI）
 docs/       多语言 README
-```
-
-## 🔐 安全与许可
-
-请勿提交密码、私有令牌或签名密钥。重新分发前，请检查 `LICENSE` 文件及第三方组件的许可证。
-
-[GitHub 仓库](https://github.com/omidrx0/RxFoxyVPN)
-
-## 📥 使用 Git 克隆仓库
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
 ```
 

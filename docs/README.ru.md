@@ -31,6 +31,8 @@ VPN-клиент для Android и Windows с простым многоязыч�
 <div align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN для Windows" width="88%"></div>
 
 ### Android
+
+**Минимальная поддерживаемая версия: Android 8.0 и выше.**
 <div align="center">
 <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Главный экран" width="28%">
 <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Список серверов" width="28%">
@@ -49,18 +51,5 @@ VPN-клиент для Android и Windows с простым многоязыч�
 Android/    Приложение Android (Kotlin / Gradle)
 Windows/    Приложение Windows (Python / web UI)
 docs/       Переведённые README
-```
-
-## 🔐 Безопасность и лицензия
-
-Не добавляйте пароли, приватные токены и ключи подписи. Перед распространением проверьте файл `LICENSE` и лицензии сторонних компонентов.
-
-[Репозиторий на GitHub](https://github.com/omidrx0/RxFoxyVPN)
-
-## 📥 Клонирование репозитория
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
 ```
 

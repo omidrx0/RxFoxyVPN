@@ -45,6 +45,8 @@ RXFoxyVPN is a cross-platform project for **Android and Windows**. This reposito
 
 ### Android
 
+**Minimum supported version: Android 8.0 (Android 8) and above.**
+
 <div align="center">
   <table>
     <tr>

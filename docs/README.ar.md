@@ -31,6 +31,8 @@
 <div align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN على Windows" width="88%"></div>
 
 ### Android
+
+**الحد الأدنى للإصدار المدعوم: Android 8.0 أو أحدث.**
 <div align="center">
 <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="الشاشة الرئيسية" width="28%">
 <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="قائمة الخوادم" width="28%">
@@ -49,18 +51,5 @@
 Android/    تطبيق Android (Kotlin / Gradle)
 Windows/    تطبيق Windows (Python / web UI)
 docs/       ملفات README المترجمة
-```
-
-## 🔐 الأمان والترخيص
-
-لا ترفع كلمات المرور أو الرموز الخاصة أو مفاتيح التوقيع. تحقق من ملف `LICENSE` وتراخيص المكونات الخارجية قبل إعادة التوزيع.
-
-[المستودع على GitHub](https://github.com/omidrx0/RxFoxyVPN)
-
-## 📥 استنساخ المستودع باستخدام Git
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
 ```
 

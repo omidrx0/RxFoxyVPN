@@ -31,6 +31,8 @@
 <div align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="Windows용 RXFoxyVPN" width="88%"></div>
 
 ### Android
+
+**최소 지원 버전: Android 8.0 이상입니다.**
 <div align="center">
 <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="홈 화면" width="28%">
 <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="서버 목록" width="28%">
@@ -49,18 +51,5 @@
 Android/    Android 앱 (Kotlin / Gradle)
 Windows/    Windows 앱 (Python / web UI)
 docs/       번역된 README 파일
-```
-
-## 🔐 보안 및 라이선스
-
-비밀번호, 비공개 토큰, 서명 키를 커밋하지 마세요. 재배포 전에 `LICENSE` 파일과 타사 구성 요소의 라이선스를 확인하세요.
-
-[GitHub 저장소](https://github.com/omidrx0/RxFoxyVPN)
-
-## 📥 Git으로 저장소 복제하기
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
 ```
 
