@@ -1,85 +1,108 @@
-<div dir="rtl" align="right">
+<div dir="rtl" align="center">
 
-# 🦊 RXFoxyVPN
+# RXFoxyVPN
 
-### آزادی انتخاب برای اتصال شما
+<p><img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="لوگوی RXFoxyVPN" width="150"></p>
 
-**پروژهٔ کلاینت VPN برای ویندوز و اندروید**
+### آزادی شما، اولویت ما
 
-[![پلتفرم](https://img.shields.io/badge/platform-Windows%20%7C%20Android-168BFF?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN)
-[![نسخه](https://img.shields.io/badge/version-v1.0.0-7C3AED?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN/releases)
-[![رابط چندزبانه](https://img.shields.io/badge/interface-multilingual-0EA5A4?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN)
+**کلاینت VPN برای اندروید و ویندوز با رابط کاربری ساده و چندزبانه**
 
-**[دانلود آخرین نسخه](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [مشاهده سورس‌کد](https://github.com/omidrx0/RxFoxyVPN) · [English](../README.md)**
+[![Android](https://img.shields.io/badge/Platform-Android-212121?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com/)
+[![Windows](https://img.shields.io/badge/Platform-Windows-212121?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Version](https://img.shields.io/badge/Version-v1.0.0-212121?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN/releases)
+[![GitHub](https://img.shields.io/badge/Source-GitHub-212121?style=for-the-badge&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
+
+[**دانلود آخرین نسخه**](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [**مشاهده سورس‌کد**](https://github.com/omidrx0/RxFoxyVPN)
+
+[English](../README.md) · [فارسی](README.fa.md) · [Русский](README.ru.md) · [简体中文](README.zh.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
 </div>
 
 ---
 
-## ✨ درباره RXFoxyVPN
+## ✨ معرفی
 
-RXFoxyVPN پروژه‌ای چندسکویی برای **ویندوز** و **اندروید** است که با رابط کاربری مرتب و مستندات چندزبانه ارائه می‌شود. سورس‌کد در این مخزن قرار دارد و فایل‌های آمادهٔ نصب یا اجرا، در صورت انتشار، از بخش Releases گیت‌هاب قابل دریافت هستند.
+RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید و ویندوز** است. این مخزن شامل سورس‌کد و مستندات پروژه است؛ فایل‌های آمادهٔ نصب، در صورت انتشار، از صفحهٔ Releases گیت‌هاب در دسترس هستند.
 
-## 🖥️ نسخه ویندوز
+## 🚀 ویژگی‌ها
 
-<p align="center">
-  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="تصویر برنامه RXFoxyVPN در ویندوز" width="850">
-</p>
+- **دو پلتفرم:** اندروید و ویندوز.
+- **رابط چندزبانه:** شامل انگلیسی، فارسی، روسی، چینی ساده‌شده، کره‌ای و عربی.
+- **سرویس VPN اندروید:** مدیریت اتصال VPN از طریق برنامهٔ اندروید.
+- **رابط دسکتاپ ویندوز:** همراه با یکپارچگی با System Tray.
+- **سورس‌کد قابل بررسی:** مشاهدهٔ کد و پیگیری تغییرات پروژه در گیت‌هاب.
 
-برای دریافت فایل اجرایی ویندوز یا بسته ZIP، به صفحه آخرین انتشار مراجعه کنید.
+## 📸 تصاویر برنامه
 
-## 📱 نسخه اندروید
+### نسخهٔ ویندوز
 
-### صفحه اصلی
-<p align="center">
-  <img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="صفحه اصلی RXFoxyVPN اندروید" width="300">
-</p>
+<div align="center">
+  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="تصویر RXFoxyVPN در ویندوز" width="88%">
+</div>
 
-### فهرست سرورها
-<p align="center">
-  <img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="فهرست سرورهای RXFoxyVPN اندروید" width="300">
-</p>
+### نسخهٔ اندروید
 
-### تنظیمات
-<p align="center">
-  <img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="صفحه تنظیمات RXFoxyVPN اندروید" width="300">
-</p>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="صفحهٔ اصلی اندروید" width="220"></td>
+      <td align="center"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="فهرست سرورها" width="220"></td>
+      <td align="center"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="تنظیمات اندروید" width="220"></td>
+    </tr>
+    <tr>
+      <td align="center"><sub>صفحهٔ اصلی</sub></td>
+      <td align="center"><sub>فهرست سرورها</sub></td>
+      <td align="center"><sub>تنظیمات</sub></td>
+    </tr>
+  </table>
+</div>
 
 ## 📥 دانلود
 
-از صفحه **[آخرین نسخه‌ها و دانلودها](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** فایل مناسب دستگاه خود را انتخاب کنید.
+برای دریافت فایل‌های منتشرشده به **[صفحهٔ آخرین نسخه در گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** بروید.
 
-- **اندروید:** فایل APK. فقط در صورتی نصب کنید که به منبع فایل اعتماد دارید.
-- **ویندوز:** فایل اجرایی EXE یا بسته ZIP، در صورتی که در انتشار موجود باشد.
-- **سورس‌کد:** برای بررسی یا توسعه، مخزن را مشاهده یا Clone کنید.
+- **اندروید:** فایل APK موجود در بخش دارایی‌های Release را دریافت کنید.
+- **ویندوز:** فایل EXE قابل‌حمل یا بستهٔ ZIP ارائه‌شده در Release را دریافت کنید.
+- **سورس‌کد:** از لینک مخزن گیت‌هاب استفاده کنید.
 
-> صفحه Releases مرجع اصلی برای نسخه فعلی و فایل‌های قابل دانلود است.
+> **توجه:** این مخزن در حال حاضر خصوصی است؛ فقط افرادی که دسترسی دارند می‌توانند سورس‌کد و فایل‌های Release را مشاهده و دریافت کنند.
 
-## 🧰 دریافت سورس‌کد
+## 🧑‍💻 ساختار پروژه
 
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
+```text
+Android/    برنامهٔ اندروید (Kotlin / Gradle)
+Windows/    برنامهٔ ویندوز (Python / رابط وب)
+docs/       فایل‌های README ترجمه‌شده
 ```
 
-- **اندروید:** پروژه اندروید را در Android Studio باز کنید.
-- **ویندوز:** پیش از ساخت برنامه، سورس و دستورالعمل‌های بسته‌بندی پوشه Windows را بررسی کنید.
+## 🛠️ توسعه و ساخت
 
-مراحل ساخت ممکن است به ابزارها و وابستگی‌های موجود در نسخه فعلی پروژه نیاز داشته باشد.
+- **اندروید:** پوشهٔ `Android/` را در Android Studio باز کنید و نسخه‌های موردنیاز JDK و Android SDK را از تنظیمات Gradle بررسی کنید.
+- **ویندوز:** سورس‌کد و اسکریپت‌های بسته‌بندی داخل `Windows/` را بررسی کرده و وابستگی‌های معرفی‌شده در پروژه را نصب کنید.
 
-## 🌐 زبان‌های README
+مراحل ساخت ممکن است با توجه به پیکربندی پروژه و محیط سیستم متفاوت باشد؛ فایل‌های تنظیمات مخزن را مرجع اصلی قرار دهید.
 
-[فارسی](README.fa.md) · [English](../README.md) · [العربية](README.ar.md) · [Русский](README.ru.md) · [简体中文](README.zh.md) · [한국어](README.ko.md)
+## 🔐 امنیت
 
-## 🔐 امنیت و مجوز استفاده
+- رمز عبور، توکن خصوصی، کلید امضا، keystore یا فایل تنظیمات شخصی را در مخزن قرار ندهید.
+- پیش از بازتوزیع برنامه، مجوز کتابخانه‌ها و اجزای شخص ثالث را بررسی کنید.
+- هیچ VPNای به‌تنهایی ناشناس‌بودن کامل یا محافظت در برابر همهٔ تهدیدها را تضمین نمی‌کند.
 
-رمزها، کلیدهای API، کلیدهای امضا، فایل‌های keystore و تنظیمات خصوصی را در مخزن منتشر نکنید. پیش از بازتوزیع، مجوز اجزای شخص ثالث را بررسی کنید. تا زمانی که فایل مجوز به مخزن اضافه نشده، فرض نکنید استفاده مجدد از سورس بدون محدودیت مجاز است.
+## 🤝 مشارکت
+
+پیشنهادها، گزارش خطاها و بهبودها خوش‌آمد هستند. اگر به مخزن خصوصی دسترسی دارید، می‌توانید Issue ثبت کنید یا Pull Request ارسال کنید.
+
+## 📄 مجوز
+
+پیش از بازتوزیع پروژه، فایل `LICENSE` و شرایط آن را در مخزن بررسی کنید.
 
 ---
 
 <div align="center">
 
-**RXFoxyVPN** · ویندوز و اندروید
+**RXFoxyVPN** · اندروید و ویندوز · [مخزن گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN)
 
-[مخزن گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN) · [انتشارها و دانلودها](https://github.com/omidrx0/RxFoxyVPN/releases)
+*آزادی شما، اولویت ماست.*
 
 </div>

@@ -1,36 +1,58 @@
-# 🦊 RXFoxyVPN
+<div align="center">
 
-عميل VPN لنظامي **Windows** و**Android** بواجهة واضحة وتوثيق متعدد اللغات.
+# RXFoxyVPN
 
-[![المنصات](https://img.shields.io/badge/platform-Windows%20%7C%20Android-168BFF?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN)
-[![الإصدار](https://img.shields.io/badge/version-v1.0.0-7C3AED?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN/releases)
+<p><img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="شعار RXFoxyVPN" width="150"></p>
 
-**[تنزيل أحدث إصدار](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [المصدر](https://github.com/omidrx0/RxFoxyVPN) · [English](../README.md) · [فارسی](README.fa.md)**
+### حريتك، أولويتنا
 
-## 🖥️ تطبيق Windows
-<p align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN على Windows" width="850"></p>
+عميل VPN لنظامي Android وWindows بواجهة بسيطة ومتعددة اللغات.
 
-## 📱 تطبيق Android
+[![Android](https://img.shields.io/badge/Platform-Android-212121?style=for-the-badge&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
+[![Windows](https://img.shields.io/badge/Platform-Windows-212121?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
+[![Version](https://img.shields.io/badge/Version-v1.0.0-212121?style=for-the-badge)](https://github.com/omidrx0/RxFoxyVPN/releases)
 
-### الشاشة الرئيسية
-<p align="center"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="الشاشة الرئيسية" width="300"></p>
-
-### قائمة الخوادم
-<p align="center"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="قائمة الخوادم" width="300"></p>
-
-### الإعدادات
-<p align="center"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="الإعدادات" width="300"></p>
-
-## 📥 التنزيلات
-اختر ملف جهازك من [صفحة الإصدارات](https://github.com/omidrx0/RxFoxyVPN/releases/latest). قد تتوفر حزمة APK لنظام Android وملفات EXE أو ZIP لنظام Windows حسب الإصدار المنشور.
-
-## 🧰 الشيفرة المصدرية
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-```
-افتح مشروع Android في Android Studio. راجع تعليمات المصدر والتعبئة في مجلد Windows قبل البناء.
-
-## 🔐 الأمان والترخيص
-لا تنشر كلمات المرور أو مفاتيح التوقيع أو الإعدادات الخاصة. تحقق من تراخيص المكونات الخارجية قبل إعادة التوزيع. ما لم تتم إضافة ملف ترخيص، لا تفترض أن إعادة استخدام الشيفرة بلا قيود مسموحة.
+[التنزيلات](https://github.com/omidrx0/RxFoxyVPN/releases/latest) · [الشيفرة المصدرية](https://github.com/omidrx0/RxFoxyVPN)
 
 [English](../README.md) · [فارسی](README.fa.md) · [Русский](README.ru.md) · [简体中文](README.zh.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
+
+</div>
+
+## ✨ الميزات
+
+- تطبيقان لنظامي Android وWindows.
+- واجهة متعددة اللغات: الإنجليزية والفارسية والروسية والصينية المبسطة والكورية والعربية.
+- خدمة VPN على Android وواجهة سطح مكتب مع تكامل علبة النظام في Windows.
+- الشيفرة المصدرية والوثائق متاحة في المستودع.
+
+## 📸 لقطات الشاشة
+
+### Windows
+<div align="center"><img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN على Windows" width="88%"></div>
+
+### Android
+<div align="center">
+<img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="الشاشة الرئيسية" width="28%">
+<img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="قائمة الخوادم" width="28%">
+<img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="الإعدادات" width="28%">
+</div>
+
+## 📥 التنزيلات
+
+راجع [أحدث إصدار على GitHub](https://github.com/omidrx0/RxFoxyVPN/releases/latest) لتنزيل ملف APK لنظام Android أو ملف EXE/ZIP لنظام Windows عند توفرهما.
+
+> المستودع خاص حاليًا؛ يلزم الحصول على صلاحية الوصول لعرض الشيفرة وملفات الإصدارات.
+
+## 🧑‍💻 هيكل المشروع
+
+```text
+Android/    تطبيق Android (Kotlin / Gradle)
+Windows/    تطبيق Windows (Python / web UI)
+docs/       ملفات README المترجمة
+```
+
+## 🔐 الأمان والترخيص
+
+لا ترفع كلمات المرور أو الرموز الخاصة أو مفاتيح التوقيع. تحقق من ملف `LICENSE` وتراخيص المكونات الخارجية قبل إعادة التوزيع.
+
+[المستودع على GitHub](https://github.com/omidrx0/RxFoxyVPN)
