@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,7 +30,11 @@
 
 ## معرفی
 
-RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **ویندوز** است که حول یک رابط کاربری ساده و یکپارچه، به زبان خودتان ساخته شده است. این مخزن شامل سورس‌کد و مستندات است؛ فایل‌های آمادهٔ نصب در صفحهٔ [Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/latest) منتشر می‌شوند.
+RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **ویندوز** است که رابط کاربری ساده و یکپارچه‌ای به زبان شما ارائه می‌دهد. این مخزن شامل سورس‌کد و مستندات است؛ نسخه‌های آماده در صفحهٔ [Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/latest) منتشر می‌شوند.
+
+### تغییرات نسخهٔ 1.0.1
+
+برنامهٔ ویندوز در این نسخه از **Python به Go بازنویسی شده است**. نسخهٔ `v1.0.0` از پیاده‌سازی پایتونی استفاده می‌کرد، اما از `v1.0.1` به بعد، نسخهٔ ویندوز بر پایهٔ Go است. برنامهٔ اندروید همچنان پروژه‌ای جداگانه بر پایهٔ Android/Kotlin است.
 
 ## ویژگی‌ها
 
@@ -100,7 +104,7 @@ cd RxFoxyVPN
 </div>
 
 - **اندروید:** پوشهٔ `Android/` را در Android Studio باز کنید، صبر کنید Gradle همگام‌سازی شود (نسخه‌های موردنیاز JDK و Android SDK را در فایل‌های Gradle ببینید) و سپس برنامه را اجرا کنید یا از *Build → Build APK(s)* استفاده کنید.
-- **ویندوز:** سورس‌کد و اسکریپت‌های بسته‌بندی در `Windows/` قرار دارند؛ وابستگی‌های معرفی‌شدهٔ پروژه را نصب کنید و سپس برنامه را اجرا یا بسته‌بندی کنید.
+- **ویندوز:** نسخهٔ جدید برنامه با Go نوشته شده است. سورس‌کد و دستورالعمل‌های ساخت نسخهٔ ویندوز را در مخزن دنبال کنید و پیش‌نیازهای Go و رابط وب را مطابق تنظیمات پروژه آماده کنید.
 
 مراحل ساخت ممکن است بسته به محیط شما متفاوت باشد؛ فایل‌های پیکربندی مخزن مرجع اصلی هستند.
 
@@ -112,7 +116,7 @@ cd RxFoxyVPN
 
 ```text
 Android/    برنامهٔ اندروید (Kotlin / Gradle)
-Windows/    برنامهٔ ویندوز (Python / رابط وب)
+Windows/    برنامهٔ ویندوز (Go / رابط وب)
 docs/       فایل‌های README ترجمه‌شده
 ```
 

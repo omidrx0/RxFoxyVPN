@@ -40,6 +40,7 @@ import com.vauth.rxfoxyvpn.data.model.RuntimeAuth
 import com.vauth.rxfoxyvpn.vpn.socks.LocalSocks5Server
 import com.vauth.rxfoxyvpn.vpn.tun.HevSocks5Tunnel
 import com.vauth.rxfoxyvpn.vpn.tun.HevSocks5TunnelConfig
+import com.vauth.rxfoxyvpn.widget.QuickConnectWidgetProvider
 import com.vauth.rxfoxyvpn.vpn.upstream.EdgeAddressResolver
 import com.vauth.rxfoxyvpn.vpn.upstream.H2UpstreamSession
 import com.vauth.rxfoxyvpn.vpn.upstream.UpstreamConnectRejectedException
@@ -412,6 +413,7 @@ class RxFoxyVpnService : VpnService() {
         reportedUnderlying = null
         scope.cancel()
         _state.value = ConnectionState.DISCONNECTED
+        QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
         super.onDestroy()
     }
 
@@ -463,6 +465,7 @@ class RxFoxyVpnService : VpnService() {
                 AppLogger.i(TAG, "the service was restarted by the system; bringing the tunnel back up")
             }
             _state.value = ConnectionState.CONNECTING
+            QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
             _lastError.value = null
             statusLabel = "Connecting\u2026"
             enterForeground(statusLabel)
@@ -490,6 +493,7 @@ class RxFoxyVpnService : VpnService() {
 
         val endedGeneration = ++connectionGeneration
         _state.value = ConnectionState.DISCONNECTED
+        QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
         connectJob?.cancel()
         connectJob = null
         watchdogJob?.cancel()
@@ -755,6 +759,7 @@ class RxFoxyVpnService : VpnService() {
                     applicationContext,
                     socksPort,
                     customDnsServer,
+                    settingsStore.tunnelMtu,
                 )
                 tunConfigPath = tunnelConfigPath
                 val tunnelStarted = HevSocks5Tunnel.start(tunnelConfigPath, fd.fd)
@@ -910,6 +915,7 @@ class RxFoxyVpnService : VpnService() {
 
             val connectedText = connectedLabel()
             _state.value = ConnectionState.CONNECTED
+            QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
             statusLabel = connectedText
             updateNotification(connectedText)
             AppLogger.i(TAG, "connect: CONNECTED via ${establishedCandidate.authority}")
@@ -943,6 +949,7 @@ class RxFoxyVpnService : VpnService() {
                     connectionGeneration++
                     watchdogJob = null
                     _state.value = ConnectionState.DISCONNECTED
+                    QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
                     exitForeground()
                     releaseWakeLocks()
                     val doomed = detachResources()
@@ -1169,7 +1176,7 @@ class RxFoxyVpnService : VpnService() {
             }
             .addDnsServer(dnsServer)
 
-            .setMtu(HevSocks5TunnelConfig.TUN_MTU)
+            .setMtu(SettingsStore(applicationContext).tunnelMtu)
             .setBlocking(true)
             .apply {
 
@@ -1195,6 +1202,7 @@ class RxFoxyVpnService : VpnService() {
         watchdogJob = null
         releaseResources(detachResources(), stopNativeTunnel = true)
         _state.value = ConnectionState.DISCONNECTED
+        QuickConnectWidgetProvider.updateAll(this@RxFoxyVpnService, _state.value)
     }
 
     private fun detachResources(): SessionResources {

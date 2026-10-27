@@ -15,16 +15,46 @@ object LanguageManager {
     private val _currentLang = MutableStateFlow("en")
     val currentLang: StateFlow<String> = _currentLang.asStateFlow()
 
+    private val _selectedLang = MutableStateFlow("auto")
+    val selectedLang: StateFlow<String> = _selectedLang.asStateFlow()
+
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val saved = prefs.getString(KEY_LANG, "en") ?: "en"
-        _currentLang.value = saved
+        val saved = prefs.getString(KEY_LANG, "auto") ?: "auto"
+        _selectedLang.value = saved
+        _currentLang.value = if (saved == "auto") {
+            val systemLoc = java.util.Locale.getDefault().language
+            if (systemLoc in listOf("en", "fa", "ar", "ko", "ru", "zh")) systemLoc else "en"
+        } else {
+            saved
+        }
+    }
+
+    fun refreshSystemLanguage(context: Context) {
+        init(context)
     }
 
     fun setLanguage(context: Context, langCode: String) {
-        _currentLang.value = langCode
+        _selectedLang.value = langCode
+        val resolved = if (langCode == "auto") {
+            val systemLoc = java.util.Locale.getDefault().language
+            if (systemLoc in listOf("en", "fa", "ar", "ko", "ru", "zh")) systemLoc else "en"
+        } else {
+            langCode
+        }
+        _currentLang.value = resolved
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY_LANG, langCode).apply()
+    }
+
+    fun getLanguageNativeName(langCode: String): String = when (langCode.lowercase()) {
+        "en" -> "English"
+        "fa" -> "فارسی"
+        "ar" -> "العربية"
+        "ko" -> "한국어"
+        "ru" -> "Русский"
+        "zh" -> "简体中文"
+        else -> "English"
     }
 
     private val translations = mapOf(
@@ -193,6 +223,10 @@ object LanguageManager {
             "account_section" to "Account",
             "verify_exit" to "Verify exit location",
             "verify_exit_desc" to "Check that the tunnel exits in the selected country",
+            "tunnel_mtu" to "Tunnel MTU",
+            "tunnel_mtu_desc" to "Packet size for the VPN tunnel",
+            "tunnel_mtu_range" to "Choose a value from 1280 to 9000. Default: 1400.",
+            "mtu_saved_reconnect" to "MTU saved. Reconnect VPN to apply.",
             "proxy_only" to "Proxy-only mode",
             "proxy_only_desc" to "Run only the local SOCKS5 proxy, without a VPN interface",
             "local_address" to "Local address",
@@ -480,6 +514,10 @@ object LanguageManager {
             "account_section" to "حساب کاربری",
             "verify_exit" to "تایید خروجی کشور",
             "verify_exit_desc" to "بررسی خروج ترافیک از کشور انتخابی",
+            "tunnel_mtu" to "MTU تونل",
+            "tunnel_mtu_desc" to "اندازه بسته‌های شبکه در تونل VPN",
+            "tunnel_mtu_range" to "مقداری بین ۱۲۸۰ تا ۹۰۰۰ انتخاب کنید. پیش‌فرض: ۱۴۰۰.",
+            "mtu_saved_reconnect" to "MTU ذخیره شد. برای اعمال، VPN را دوباره وصل کنید.",
             "proxy_only" to "حالت فقط پراکسی",
             "proxy_only_desc" to "اجرای پراکسی SOCKS5/HTTP بدون نیاز به مجوز وی‌پی‌ان اندروید",
             "local_address" to "آدرس محلی",
@@ -767,6 +805,10 @@ object LanguageManager {
             "account_section" to "الحساب",
             "verify_exit" to "التحقق من موقع الخروج",
             "verify_exit_desc" to "التأكد من خروج حركة المرور من الدولة المحددة",
+            "tunnel_mtu" to "MTU النفق",
+            "tunnel_mtu_desc" to "حجم حزم البيانات داخل نفق VPN",
+            "tunnel_mtu_range" to "اختر قيمة من 1280 إلى 9000. الافتراضي: 1400.",
+            "mtu_saved_reconnect" to "تم حفظ MTU. أعد الاتصال بـ VPN لتطبيقه.",
             "proxy_only" to "وضع الوكيل فقط",
             "proxy_only_desc" to "تشغيل وكيل SOCKS5/HTTP محلي بدون إذن VPN",
             "local_address" to "العنوان المحلي",
@@ -1054,6 +1096,10 @@ object LanguageManager {
             "account_section" to "계정",
             "verify_exit" to "종출 위치 확인",
             "verify_exit_desc" to "트래픽이 선택한 국가에서 나가는지 확인",
+            "tunnel_mtu" to "터널 MTU",
+            "tunnel_mtu_desc" to "VPN 터널의 패킷 크기",
+            "tunnel_mtu_range" to "1280~9000 사이의 값을 선택하세요. 기본값: 1400.",
+            "mtu_saved_reconnect" to "MTU를 저장했습니다. 적용하려면 VPN에 다시 연결하세요.",
             "proxy_only" to "프록시 전용 모드",
             "proxy_only_desc" to "VPN 권한 없이 로컬 SOCKS5/HTTP 프록시만 실행",
             "local_address" to "로컬 주소",
@@ -1341,6 +1387,10 @@ object LanguageManager {
             "account_section" to "Аккаунт",
             "verify_exit" to "Проверка локации",
             "verify_exit_desc" to "Проверять выгрузку трафика в выбранной стране",
+            "tunnel_mtu" to "MTU туннеля",
+            "tunnel_mtu_desc" to "Размер пакетов в VPN-туннеле",
+            "tunnel_mtu_range" to "Выберите значение от 1280 до 9000. По умолчанию: 1400.",
+            "mtu_saved_reconnect" to "MTU сохранён. Переподключите VPN для применения.",
             "proxy_only" to "Режим только прокси",
             "proxy_only_desc" to "Запуск SOCKS5/HTTP прокси без системного VPN",
             "local_address" to "Локальный адрес",
@@ -1628,6 +1678,10 @@ object LanguageManager {
             "account_section" to "账号",
             "verify_exit" to "验证出口位置",
             "verify_exit_desc" to "检查流量是否从所选国家出口",
+            "tunnel_mtu" to "隧道 MTU",
+            "tunnel_mtu_desc" to "VPN 隧道的数据包大小",
+            "tunnel_mtu_range" to "请选择 1280 到 9000 之间的值。默认值：1400。",
+            "mtu_saved_reconnect" to "MTU 已保存。请重新连接 VPN 以应用设置。",
             "proxy_only" to "仅代理模式",
             "proxy_only_desc" to "无需 VPN 权限运行本地 SOCKS5/HTTP 代理",
             "local_address" to "本地地址",

@@ -1,6 +1,7 @@
 package com.vauth.rxfoxyvpn.ui.screens
 
 import android.content.Intent
+import android.widget.Toast
 import android.net.Uri
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -54,7 +55,11 @@ import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -143,6 +148,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var exitCheckEnabled by remember { mutableStateOf(settingsStore.exitCheckEnabled) }
+    var tunnelMtu by remember { mutableIntStateOf(settingsStore.tunnelMtu) }
+    var showTunnelMtuDialog by remember { mutableStateOf(false) }
     var dohProvider by remember { mutableStateOf(settingsStore.dohProvider) }
     var customDnsEnabled by remember { mutableStateOf(settingsStore.customDnsEnabled) }
     var customDnsServer by remember { mutableStateOf(settingsStore.customDnsServer) }
@@ -167,19 +174,30 @@ fun SettingsScreen(
     var showUpstreamProxyCredentialsDialog by remember { mutableStateOf(false) }
     var showSplitTunnelPage by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showAndroidUpdateDialog by remember { mutableStateOf(false) }
     val currentLang by LanguageManager.currentLang.collectAsState()
-    val langDisplayNames = mapOf(
-        "en" to "English",
-        "fa" to "فارسی",
-        "ar" to "العربية",
-        "ko" to "한국어",
-        "ru" to "Русский",
-        "zh" to "简体中文"
-    )
+    val selectedLang by LanguageManager.selectedLang.collectAsState()
+
+    if (showTunnelMtuDialog) {
+        TunnelMtuDialog(
+            current = tunnelMtu,
+            onDismiss = { showTunnelMtuDialog = false },
+            onConfirm = { value ->
+                tunnelMtu = value
+                settingsStore.tunnelMtu = value
+                showTunnelMtuDialog = false
+                Toast.makeText(context, LanguageManager.t("mtu_saved_reconnect", "MTU saved. Reconnect VPN to apply."), Toast.LENGTH_LONG).show()
+            },
+        )
+    }
+
+    if (showAndroidUpdateDialog) {
+        AndroidUpdateDialog(onDismiss = { showAndroidUpdateDialog = false })
+    }
 
     if (showLanguageDialog) {
         LanguagePickerDialog(
-            currentTag = currentLang,
+            currentTag = selectedLang,
             onDismiss = { showLanguageDialog = false },
             onConfirm = { tag ->
                 LanguageManager.setLanguage(context, tag)
@@ -324,7 +342,7 @@ fun SettingsScreen(
                                 icon = Icons.Default.Language,
                                 tint = RxSet.Cyan,
                                 title = LanguageManager.t("language", "Language"),
-                                subtitle = langDisplayNames[currentLang] ?: "English",
+                                subtitle = if (selectedLang == "auto") "${LanguageManager.t("auto", "Automatic")} (${LanguageManager.getLanguageNativeName(currentLang)})" else LanguageManager.getLanguageNativeName(selectedLang),
                                 onClick = { showLanguageDialog = true },
                             )
                         }
@@ -341,6 +359,14 @@ fun SettingsScreen(
                                     exitCheckEnabled = it
                                     settingsStore.exitCheckEnabled = it
                                 },
+                            )
+                            RowDivider()
+                            NavRow(
+                                icon = Icons.Default.Tune,
+                                tint = RxSet.Cyan,
+                                title = LanguageManager.t("tunnel_mtu", "Tunnel MTU"),
+                                subtitle = LanguageManager.t("tunnel_mtu_desc", "Packet size for the VPN tunnel") + " · $tunnelMtu",
+                                onClick = { showTunnelMtuDialog = true },
                             )
                             RowDivider()
                             SettingRow(
@@ -526,7 +552,15 @@ fun SettingsScreen(
                                 icon = Icons.Default.Info,
                                 tint = RxSet.Violet,
                                 title = LanguageManager.t("version", "Version"),
-                                subtitle = BuildConfig.VERSION_NAME,
+                                subtitle = "V${BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")}",
+                            )
+                            RowDivider()
+                            NavRow(
+                                icon = Icons.Default.SystemUpdateAlt,
+                                tint = RxSet.Cyan,
+                                title = updateSettingsLabel(currentLang, "title"),
+                                subtitle = updateSettingsLabel(currentLang, "subtitle"),
+                                onClick = { showAndroidUpdateDialog = true },
                             )
                             RowDivider()
                             NavRow(
@@ -551,7 +585,7 @@ fun SettingsScreen(
                         ) {
                             Image(painterResource(id = R.drawable.rx_logo), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("RXFOXYVPN  ·  ${BuildConfig.VERSION_NAME}", color = RxSet.Mute, fontSize = 12.sp)
+                            Text("RXFOXYVPN  ·  V${BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")}", color = RxSet.Mute, fontSize = 12.sp)
                         }
                     }
                 }
@@ -830,7 +864,7 @@ private fun ExcludedIconStack(packages: List<String>) {
     }
 }
 
-private data class InstalledAppEntry(val packageName: String, val label: String)
+private data class InstalledAppEntry(val packageName: String, val label: String, val isSystem: Boolean)
 
 @Composable
 private fun SplitTunnelPage(
@@ -844,17 +878,27 @@ private fun SplitTunnelPage(
     var selected by remember { mutableStateOf(current) }
     var searchQuery by remember { mutableStateOf("") }
     var tab by remember { mutableIntStateOf(0) } // 0 = all apps, 1 = selected only
+    var showSystemApps by remember { mutableStateOf(true) }
 
     var loaded by remember { mutableStateOf(false) }
-    val installedApps by produceState<List<InstalledAppEntry>>(initialValue = emptyList()) {
+    val installedApps by produceState<List<InstalledAppEntry>>(initialValue = emptyList(), showSystemApps) {
+        loaded = false
         value = withContext(Dispatchers.IO) {
             val packageManager = context.packageManager
             packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
                 .asSequence()
                 .filter { it.packageName != context.packageName }
-                .filter { packageManager.getLaunchIntentForPackage(it.packageName) != null }
                 .map { info: ApplicationInfo ->
-                    InstalledAppEntry(info.packageName, info.loadLabel(packageManager).toString())
+                    val isSystem = (info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+                    val label = info.loadLabel(packageManager).toString()
+                    InstalledAppEntry(info.packageName, label, isSystem)
+                }
+                .filter { app ->
+                    if (showSystemApps) {
+                        true
+                    } else {
+                        !app.isSystem && packageManager.getLaunchIntentForPackage(app.packageName) != null
+                    }
                 }
                 .sortedBy { it.label.lowercase() }
                 .toList()
@@ -901,6 +945,35 @@ private fun SplitTunnelPage(
                 Text(
                     LanguageManager.t("split_hint", "Selected apps bypass the VPN and use your normal internet connection."),
                     color = RxSet.Text, fontSize = 12.5.sp, lineHeight = 18.sp,
+                )
+            }
+
+            // Show system apps toggle row
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(RxSet.Panel2)
+                    .clickable { showSystemApps = !showSystemApps }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    LanguageManager.t("show_system_apps", "Show system apps"),
+                    color = RxSet.Text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = showSystemApps,
+                    onCheckedChange = { showSystemApps = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = RxSet.Violet,
+                        uncheckedThumbColor = RxSet.Mute,
+                        uncheckedTrackColor = RxSet.PanelS,
+                    ),
                 )
             }
 
@@ -954,7 +1027,7 @@ private fun SplitTunnelPage(
                 )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     items(shownApps, key = { it.packageName }) { app ->
@@ -1163,6 +1236,7 @@ private fun LanguagePickerDialog(
 ) {
     var selected by remember { mutableStateOf(currentTag) }
     val languages = listOf(
+        "auto" to LanguageManager.t("auto", "Automatic"),
         "en" to "English",
         "fa" to "فارسی",
         "ar" to "العربية",
@@ -1300,6 +1374,37 @@ private fun SocksPortPickerDialog(
 }
 
 @Composable
+private fun TunnelMtuDialog(
+    current: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    var mtuText by remember(current) { mutableStateOf(current.toString()) }
+    val parsed = mtuText.toIntOrNull()
+    val valid = parsed != null && parsed in SettingsStore.MIN_TUNNEL_MTU..SettingsStore.MAX_TUNNEL_MTU
+    RxDialog(
+        title = LanguageManager.t("tunnel_mtu", "Tunnel MTU"),
+        onDismiss = onDismiss,
+        onConfirm = { parsed?.let(onConfirm) },
+        confirmEnabled = valid,
+    ) {
+        Text(
+            LanguageManager.t("tunnel_mtu_range", "Choose a value from 1280 to 9000. Default: 1400."),
+            color = RxSet.Mute,
+            fontSize = 12.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        RxField(
+            value = mtuText,
+            onChange = { mtuText = it.filter(Char::isDigit).take(4) },
+            label = LanguageManager.t("tunnel_mtu", "Tunnel MTU"),
+            keyboardType = KeyboardType.Number,
+            isError = mtuText.isNotBlank() && !valid,
+        )
+    }
+}
+
+@Composable
 private fun UpstreamProxyTypePickerDialog(
     current: SettingsStore.UpstreamProxyType,
     onDismiss: () -> Unit,
@@ -1377,4 +1482,9 @@ private fun UpstreamProxyCredentialsDialog(
             modifier = Modifier.padding(top = 10.dp),
         )
     }
+}
+@Composable
+private fun updateSettingsLabel(lang: String, key: String): String = when (key) {
+    "title" -> when (lang) { "fa" -> "بررسی به‌روزرسانی"; "ar" -> "التحقق من التحديثات"; "ru" -> "Проверить обновления"; "ko" -> "업데이트 확인"; "zh" -> "检查更新"; else -> "Check for updates" }
+    else -> when (lang) { "fa" -> "بررسی نسخه جدید در گیت‌هاب"; "ar" -> "التحقق من إصدار جديد على GitHub"; "ru" -> "Проверить новую версию на GitHub"; "ko" -> "GitHub에서 새 버전 확인"; "zh" -> "检查 GitHub 上的新版本"; else -> "Check for a new version on GitHub" }
 }

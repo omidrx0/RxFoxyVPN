@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -29,6 +29,10 @@
 ## Обзор
 
 RXFoxyVPN — кроссплатформенный проект для **Android** и **Windows** с простым и единым интерфейсом на вашем языке. В репозитории находятся исходный код и документация; готовые сборки публикуются на странице [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
+
+### Что нового в v1.0.1
+
+В этой версии приложение для Windows было **переписано с Python на Go**. В `v1.0.0` использовалась версия для Windows на Python, а начиная с `v1.0.1` используется реализация на Go. Приложение Android остаётся отдельным проектом на Android/Kotlin.
 
 ## Возможности
 
@@ -94,7 +98,7 @@ cd RxFoxyVPN
 ```
 
 - **Android**: откройте папку `Android/` в Android Studio, дождитесь синхронизации Gradle (нужные версии JDK и Android SDK указаны в файлах Gradle), затем запустите приложение или выберите *Build → Build APK(s)*.
-- **Windows**: исходный код и скрипты упаковки находятся в `Windows/`; установите перечисленные в проекте зависимости, затем запустите или упакуйте приложение.
+- **Windows**: новая версия приложения написана на Go. Ознакомьтесь с исходным кодом Windows и инструкциями по сборке в репозитории, а также выполните требования проекта для сборки Go и веб-интерфейса.
 
 Шаги сборки могут отличаться в зависимости от окружения; главным источником служат конфигурационные файлы репозитория.
 
@@ -104,7 +108,7 @@ cd RxFoxyVPN
 
 ```text
 Android/    Приложение Android (Kotlin / Gradle)
-Windows/    Приложение Windows (Python / веб-интерфейс)
+Windows/    Приложение Windows (Go / веб-интерфейс)
 docs/       Переведённые файлы README
 ```
 

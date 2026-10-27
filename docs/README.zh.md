@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -29,6 +29,10 @@
 ## 简介
 
 RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简洁统一、支持你所用语言的界面。本仓库包含源代码和文档；可直接使用的构建版本发布在 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) 页面。
+
+### v1.0.1 新变化
+
+此版本将 Windows 应用从 **Python 重写为 Go**。`v1.0.0` 的 Windows 应用基于 Python；从 `v1.0.1` 开始，Windows 版本采用 Go 实现。Android 应用仍是独立的 Android/Kotlin 项目。
 
 ## 功能
 
@@ -94,7 +98,7 @@ cd RxFoxyVPN
 ```
 
 - **Android**：在 Android Studio 中打开 `Android/` 目录，等待 Gradle 同步完成（所需 JDK 与 Android SDK 版本请查看 Gradle 配置），然后运行应用，或使用 *Build → Build APK(s)*。
-- **Windows**：源代码和打包脚本位于 `Windows/`，请先安装项目列出的依赖，再运行或打包应用。
+- **Windows**：新版 Windows 应用使用 Go 编写。请查看仓库中的 Windows 源代码和构建说明，并按照项目配置准备 Go 与 Web UI 构建所需环境。
 
 构建步骤可能因环境而异，请以仓库中的配置文件为准。
 
@@ -104,7 +108,7 @@ cd RxFoxyVPN
 
 ```text
 Android/    Android 应用（Kotlin / Gradle）
-Windows/    Windows 应用（Python / Web 界面）
+Windows/    Windows 应用（Go / Web 界面）
 docs/       多语言 README 文件
 ```
 

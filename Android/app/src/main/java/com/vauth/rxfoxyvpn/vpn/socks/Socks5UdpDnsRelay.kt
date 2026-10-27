@@ -6,13 +6,9 @@ import com.vauth.rxfoxyvpn.vpn.upstream.UpstreamSession
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.withTimeoutOrNull
-import java.io.DataInputStream
 import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -47,8 +43,7 @@ internal class Socks5UdpDnsRelay(
     private val inflight = Semaphore(MAX_INFLIGHT_QUERIES)
 
     private val queriesOverHttps = AtomicInteger(0)
-    private val queriesOverTcp = AtomicInteger(0)
-    private val httpsFallbacks = AtomicInteger(0)
+    private val dohFailures = AtomicInteger(0)
     private val nonDnsDropped = AtomicInteger(0)
     private val foreignSourceDropped = AtomicInteger(0)
     private val otherDropped = AtomicInteger(0)
@@ -109,17 +104,16 @@ internal class Socks5UdpDnsRelay(
         runCatching { socket.close() }
         scope.cancel()
         val https = queriesOverHttps.get()
-        val tcp = queriesOverTcp.get()
-        val fallbacks = httpsFallbacks.get()
+        val dohFailed = dohFailures.get()
         val nonDns = nonDnsDropped.get()
         val foreign = foreignSourceDropped.get()
         val other = otherDropped.get()
 
-        if (https > 0 || tcp > 0 || nonDns > 0 || foreign > 0 || other > 0) {
+        if (https > 0 || dohFailed > 0 || nonDns > 0 || foreign > 0 || other > 0) {
             AppLogger.d(
                 TAG,
-                "UDP association closed: $https DNS queries over HTTPS, $tcp over plaintext TCP " +
-                    "($fallbacks of them after HTTPS failed), $nonDns non-DNS datagrams dropped, " +
+                "UDP association closed: $https DNS queries over HTTPS, $dohFailed DoH queries failed " +
+                    "(no plaintext port-53 fallback), $nonDns non-DNS datagrams dropped, " +
                     "$foreign from unassociated sources, $other other drops",
             )
         }
@@ -159,7 +153,7 @@ internal class Socks5UdpDnsRelay(
             return
         }
 
-        val answer = resolve(session, request.host, query)
+        val answer = resolve(request.host, query)
         if (answer == null) {
             otherDropped.incrementAndGet()
             return
@@ -170,61 +164,32 @@ internal class Socks5UdpDnsRelay(
             .onFailure { otherDropped.incrementAndGet() }
     }
 
-    private suspend fun resolve(
-        session: UpstreamSession,
+    private fun resolve(
         resolverHost: String,
         query: ByteArray,
     ): ByteArray? {
-        if (socksProxy != null) {
-            val endpoint = DohDnsClient.endpointFor(resolverHost)
-            if (endpoint != null) {
-                val answer = DohDnsClient.query(socksProxy, endpoint, query)
-                if (answer != null) {
-                    queriesOverHttps.incrementAndGet()
-                    return answer
-                }
-                httpsFallbacks.incrementAndGet()
-            }
+        val proxy = socksProxy
+        if (proxy == null) {
+            dohFailures.incrementAndGet()
+            return null
         }
-        val answer = queryOverTcp(session, resolverHost, query) ?: return null
-        queriesOverTcp.incrementAndGet()
+
+        // Strict DoH: the MASQUE edge does not support raw DNS on TCP/UDP port 53.
+        // Never fall back to opening a plaintext DNS stream through the upstream session.
+        val endpoint = DohDnsClient.endpointFor(resolverHost)
+        if (endpoint == null) {
+            dohFailures.incrementAndGet()
+            AppLogger.d(TAG, "no supported DoH endpoint for resolver $resolverHost; refusing plaintext DNS fallback")
+            return null
+        }
+
+        val answer = DohDnsClient.query(proxy, endpoint, query)
+        if (answer != null) {
+            queriesOverHttps.incrementAndGet()
+        } else {
+            dohFailures.incrementAndGet()
+        }
         return answer
-    }
-
-    private suspend fun queryOverTcp(
-        session: UpstreamSession,
-        resolverHost: String,
-        query: ByteArray,
-    ): ByteArray? = coroutineScope {
-        val tunneled = runCatching { session.openStream(resolverHost, DNS_PORT) }.getOrNull()
-            ?: return@coroutineScope null
-        try {
-            val reader = async {
-                runCatching {
-                    tunneled.output.write(byteArrayOf((query.size ushr 8).toByte(), query.size.toByte()))
-                    tunneled.output.write(query)
-                    tunneled.output.flush()
-
-                    val input = DataInputStream(tunneled.input)
-                    val length = input.readUnsignedShort()
-                    if (length == 0 || length > MAX_DNS_MESSAGE_BYTES) {
-                        throw IOException("implausible DNS-over-TCP response length $length")
-                    }
-                    val answer = ByteArray(length)
-                    input.readFully(answer)
-                    answer
-                }.getOrNull()
-            }
-            val answer = withTimeoutOrNull(QUERY_TIMEOUT_MS) { reader.await() }
-            if (answer == null) {
-
-                runCatching { tunneled.close() }
-                reader.join()
-            }
-            answer
-        } finally {
-            runCatching { tunneled.close() }
-        }
     }
 
     private class Request(val payloadOffset: Int, val host: String, val port: Int)
