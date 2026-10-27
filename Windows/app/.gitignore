@@ -1,0 +1,12 @@
+# build output
+/dist/
+*.exe
+*.syso
+
+# TUN runtime (downloaded by scripts/prepare_runtime.ps1)
+/bin/*.exe
+/bin/*.dll
+/bin/*.zip
+
+# go tooling
+/coverage.out

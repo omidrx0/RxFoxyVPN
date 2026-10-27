@@ -10,7 +10,7 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -29,6 +29,10 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 ## Overview
 
 RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built around a simple, consistent interface that speaks your language. This repository contains the source code and documentation; ready-to-use builds are published on the [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) page.
+
+### What's new in v1.0.1
+
+The Windows application has been rewritten from Python to **Go**. Version `v1.0.0` used the Python-based Windows application; starting with `v1.0.1`, the Windows version uses the Go-based implementation. The Android application remains a separate Android/Kotlin project.
 
 ## Features
 
@@ -94,7 +98,7 @@ cd RxFoxyVPN
 ```
 
 - **Android**: open the `Android/` folder in Android Studio, let Gradle sync (check the Gradle files for the required JDK and Android SDK), then run the app or use *Build → Build APK(s)*.
-- **Windows**: see `Windows/` for the source and packaging scripts, install the dependencies the project lists, then run or package the app.
+- **Windows**: the Windows application is now written in Go. See the Windows source and build instructions in the repository, then follow the project's Go and frontend build requirements.
 
 Build steps may vary with your environment. The configuration files in the repository are the source of truth.
 
@@ -104,7 +108,7 @@ Build steps may vary with your environment. The configuration files in the repos
 
 ```text
 Android/    Android application (Kotlin / Gradle)
-Windows/    Windows application (Python / web UI)
+Windows/    Windows application (Go / web UI)
 docs/       Translated README files
 ```
 

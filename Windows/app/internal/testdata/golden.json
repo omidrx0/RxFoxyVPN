@@ -1,0 +1,1180 @@
+{
+ "auth_pw": [
+  {
+   "email": "test@example.com",
+   "password": "correct horse battery staple",
+   "want": "43b0caafeddfb195199d6cc0ba891a88e31ce762a265fa1739ae2792545f03fc"
+  },
+  {
+   "email": "tëst@example.com",
+   "password": "pässwörd-☃",
+   "want": "c70d887e4753ddad7da833aa3fc2e3c8c595db0ae680c82cd03b4683063d60cd"
+  }
+ ],
+ "hkdf": [
+  {
+   "ikm": "010203",
+   "info": "identity.mozilla.com/picl/v1/test",
+   "len": 80,
+   "want": "b53b725c503178452fffb59c44b913a2da15ce9c14e14ed00849bc803adbdab1c4ade7a291dc702753efe6c45ad9d5d50f8f668e59762c6f8af7309c120f0ebb22896a1fb7eccd2c35cbd85a734d3318"
+  }
+ ],
+ "hawk_creds": {
+  "token": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "id": "9e3323815d7a6215f314f7b9cea1506cbbc960684d87919de21c3b8ff14bc914",
+  "key": "c17f032e7a89e94fceb1bec821fef231240b9dac689cb808d4571bf720a3c6c9"
+ },
+ "hawk_header": [
+  {
+   "method": "post",
+   "url": "https://api.accounts.firefox.com/v1/oauth/token",
+   "id": "9e3323815d7a6215f314f7b9cea1506cbbc960684d87919de21c3b8ff14bc914",
+   "key": "c17f032e7a89e94fceb1bec821fef231240b9dac689cb808d4571bf720a3c6c9",
+   "body": "{\"a\":1}",
+   "ts": 1700000000,
+   "nonce": "AQIDBAUG",
+   "want": "Hawk id=\"9e3323815d7a6215f314f7b9cea1506cbbc960684d87919de21c3b8ff14bc914\", ts=\"1700000000\", nonce=\"AQIDBAUG\", mac=\"D9J4AFyX4X58ZUtuuCw/TYfMSh1ohHngIWzMN7/JsM8=\", hash=\"qKG2AtsqLMhIdy7+OrxWG0bU8wTDncYSW0gmNukAKpI=\""
+  },
+  {
+   "method": "GET",
+   "url": "https://api.accounts.firefox.com:8443/v1/x?y=1&z=2",
+   "id": "9e3323815d7a6215f314f7b9cea1506cbbc960684d87919de21c3b8ff14bc914",
+   "key": "c17f032e7a89e94fceb1bec821fef231240b9dac689cb808d4571bf720a3c6c9",
+   "body": "",
+   "ts": 1700000000,
+   "nonce": "AQIDBAUG",
+   "want": "Hawk id=\"9e3323815d7a6215f314f7b9cea1506cbbc960684d87919de21c3b8ff14bc914\", ts=\"1700000000\", nonce=\"AQIDBAUG\", mac=\"N/7URWzO2KdvBoXI9UtRb32u13CIu0s5wpMfXLe7y2s=\""
+  }
+ ],
+ "jwt": [
+  {
+   "token": "aaa.eyJleHAiOiAxODkzNDU2MDAwLCAic3ViIjogIngifQ.sig",
+   "want": 1893456000
+  },
+  {
+   "token": "notajwt",
+   "want": null
+  }
+ ],
+ "serverlist": {
+  "records": [
+   {
+    "country": {
+     "code": "de",
+     "name": "Germany",
+     "cities": [
+      {
+       "servers": [
+        {
+         "hostname": "de1.example",
+         "port": 443,
+         "protocols": [
+          {
+           "name": "connect",
+           "host": "h1.example",
+           "port": 8443
+          }
+         ]
+        },
+        {
+         "hostname": "de2.example",
+         "port": 443,
+         "protocols": [
+          {
+           "name": "wireguard",
+           "host": "x",
+           "port": 1
+          }
+         ]
+        },
+        {
+         "hostname": "de3.example",
+         "port": "444",
+         "quarantined": false,
+         "protocols": [
+          {
+           "name": "connect"
+          }
+         ]
+        },
+        {
+         "hostname": "de4.example",
+         "port": 443,
+         "quarantined": true,
+         "protocols": [
+          {
+           "name": "connect"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "code": "FR",
+    "name": "France",
+    "cities": [
+     {
+      "servers": [
+       {
+        "hostname": "fr1.example",
+        "port": 0
+       },
+       {
+        "hostname": "",
+        "port": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "country": {
+     "code": "DE",
+     "name": "Germany",
+     "cities": [
+      {
+       "servers": [
+        {
+         "hostname": "de1.example",
+         "port": 443,
+         "protocols": [
+          {
+           "name": "connect",
+           "host": "h1.example",
+           "port": 8443
+          }
+         ]
+        },
+        {
+         "hostname": "de9.example",
+         "port": 443
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "code": "XX",
+    "name": "Catchall Anycast",
+    "cities": [
+     {
+      "servers": [
+       {
+        "hostname": "any.example",
+        "port": 443
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "code": "REC",
+    "name": "Recommended",
+    "cities": [
+     {
+      "servers": [
+       {
+        "hostname": "rec.example",
+        "port": 443
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "code": "ES",
+    "name": "Spain",
+    "cities": []
+   }
+  ],
+  "want": {
+   "DE": {
+    "name": "Germany",
+    "targets": [
+     [
+      "h1.example",
+      8443
+     ],
+     [
+      "de3.example",
+      444
+     ],
+     [
+      "de9.example",
+      443
+     ]
+    ]
+   },
+   "FR": {
+    "name": "France",
+    "targets": [
+     [
+      "fr1.example",
+      443
+     ]
+    ]
+   },
+   "REC": {
+    "name": "Recommended",
+    "targets": [
+     [
+      "rec.example",
+      443
+     ]
+    ]
+   }
+  }
+ },
+ "tun": [
+  {
+   "changes": {},
+   "port": 10808,
+   "want": {
+    "log": {
+     "level": "info",
+     "timestamp": true
+    },
+    "dns": {
+     "servers": [
+      {
+       "type": "https",
+       "tag": "dns-over-vpn",
+       "server": "1.1.1.1",
+       "detour": "firefox-socks",
+       "path": "/dns-query"
+      }
+     ],
+     "final": "dns-over-vpn",
+     "strategy": "prefer_ipv4"
+    },
+    "inbounds": [
+     {
+      "type": "tun",
+      "tag": "rxvpn-tun",
+      "interface_name": "RXVPN",
+      "address": [
+       "172.19.0.1/30",
+       "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "route_exclude_address": [
+       "127.0.0.0/8",
+       "::1/128",
+       "10.0.0.0/8",
+       "172.16.0.0/12",
+       "192.168.0.0/16",
+       "fc00::/7",
+       "fe80::/10"
+      ]
+     }
+    ],
+    "outbounds": [
+     {
+      "type": "socks",
+      "tag": "firefox-socks",
+      "server": "127.0.0.1",
+      "server_port": 10808,
+      "version": "5",
+      "network": "tcp"
+     },
+     {
+      "type": "block",
+      "tag": "block"
+     }
+    ],
+    "route": {
+     "auto_detect_interface": true,
+     "rules": [
+      {
+       "network": "udp",
+       "port": 53,
+       "action": "hijack-dns"
+      },
+      {
+       "network": "udp",
+       "action": "reject",
+       "method": "default"
+      }
+     ],
+     "final": "firefox-socks"
+    }
+   }
+  },
+  {
+   "changes": {
+    "direct_apps": [
+     "chrome.exe",
+     "Telegram.exe"
+    ],
+    "direct_domains": [
+     "example.com",
+     "*.ir"
+    ],
+    "direct_cidrs": [
+     "10.1.0.0/16",
+     "8.8.8.8"
+    ],
+    "udp_policy": "direct"
+   },
+   "port": 10808,
+   "want": {
+    "log": {
+     "level": "info",
+     "timestamp": true
+    },
+    "dns": {
+     "servers": [
+      {
+       "type": "https",
+       "tag": "dns-over-vpn",
+       "server": "1.1.1.1",
+       "detour": "firefox-socks",
+       "path": "/dns-query"
+      },
+      {
+       "type": "udp",
+       "tag": "dns-direct",
+       "server": "1.1.1.1"
+      }
+     ],
+     "final": "dns-over-vpn",
+     "strategy": "prefer_ipv4",
+     "rules": [
+      {
+       "domain_suffix": [
+        "example.com",
+        "ir"
+       ],
+       "action": "route",
+       "server": "dns-direct"
+      }
+     ]
+    },
+    "inbounds": [
+     {
+      "type": "tun",
+      "tag": "rxvpn-tun",
+      "interface_name": "RXVPN",
+      "address": [
+       "172.19.0.1/30",
+       "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "route_exclude_address": [
+       "127.0.0.0/8",
+       "::1/128",
+       "10.0.0.0/8",
+       "172.16.0.0/12",
+       "192.168.0.0/16",
+       "fc00::/7",
+       "fe80::/10",
+       "10.1.0.0/16",
+       "8.8.8.8/32"
+      ]
+     }
+    ],
+    "outbounds": [
+     {
+      "type": "socks",
+      "tag": "firefox-socks",
+      "server": "127.0.0.1",
+      "server_port": 10808,
+      "version": "5",
+      "network": "tcp"
+     },
+     {
+      "type": "block",
+      "tag": "block"
+     },
+     {
+      "type": "direct",
+      "tag": "direct"
+     }
+    ],
+    "route": {
+     "auto_detect_interface": true,
+     "rules": [
+      {
+       "network": "udp",
+       "port": 53,
+       "action": "hijack-dns"
+      },
+      {
+       "action": "sniff"
+      },
+      {
+       "process_name": [
+        "chrome.exe",
+        "Telegram.exe"
+       ],
+       "action": "route",
+       "outbound": "direct"
+      },
+      {
+       "domain_suffix": [
+        "example.com",
+        "ir"
+       ],
+       "action": "route",
+       "outbound": "direct"
+      },
+      {
+       "network": "udp",
+       "action": "route",
+       "outbound": "direct"
+      }
+     ],
+     "final": "firefox-socks",
+     "default_domain_resolver": "dns-direct"
+    }
+   }
+  },
+  {
+   "changes": {
+    "ipv6": false,
+    "bypass_lan": false,
+    "dns_type": "tls",
+    "dns_server": "9.9.9.9",
+    "tun_stack": "gvisor",
+    "tun_mtu": 1400,
+    "strict_route": false,
+    "log_level": "debug"
+   },
+   "port": 10808,
+   "want": {
+    "log": {
+     "level": "debug",
+     "timestamp": true
+    },
+    "dns": {
+     "servers": [
+      {
+       "type": "tls",
+       "tag": "dns-over-vpn",
+       "server": "9.9.9.9",
+       "detour": "firefox-socks"
+      }
+     ],
+     "final": "dns-over-vpn",
+     "strategy": "ipv4_only"
+    },
+    "inbounds": [
+     {
+      "type": "tun",
+      "tag": "rxvpn-tun",
+      "interface_name": "RXVPN",
+      "address": [
+       "172.19.0.1/30"
+      ],
+      "auto_route": true,
+      "strict_route": false,
+      "route_exclude_address": [
+       "127.0.0.0/8"
+      ],
+      "stack": "gvisor",
+      "mtu": 1400
+     }
+    ],
+    "outbounds": [
+     {
+      "type": "socks",
+      "tag": "firefox-socks",
+      "server": "127.0.0.1",
+      "server_port": 10808,
+      "version": "5",
+      "network": "tcp"
+     },
+     {
+      "type": "block",
+      "tag": "block"
+     }
+    ],
+    "route": {
+     "auto_detect_interface": true,
+     "rules": [
+      {
+       "network": "udp",
+       "port": 53,
+       "action": "hijack-dns"
+      },
+      {
+       "network": "udp",
+       "action": "reject",
+       "method": "default"
+      }
+     ],
+     "final": "firefox-socks"
+    }
+   }
+  },
+  {
+   "changes": {
+    "udp_policy": "direct",
+    "dns_type": "https",
+    "dns_path": "/custom",
+    "direct_dns": "8.8.4.4"
+   },
+   "port": 10808,
+   "want": {
+    "log": {
+     "level": "info",
+     "timestamp": true
+    },
+    "dns": {
+     "servers": [
+      {
+       "type": "https",
+       "tag": "dns-over-vpn",
+       "server": "1.1.1.1",
+       "detour": "firefox-socks",
+       "path": "/custom"
+      },
+      {
+       "type": "udp",
+       "tag": "dns-direct",
+       "server": "8.8.4.4"
+      }
+     ],
+     "final": "dns-over-vpn",
+     "strategy": "prefer_ipv4"
+    },
+    "inbounds": [
+     {
+      "type": "tun",
+      "tag": "rxvpn-tun",
+      "interface_name": "RXVPN",
+      "address": [
+       "172.19.0.1/30",
+       "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "route_exclude_address": [
+       "127.0.0.0/8",
+       "::1/128",
+       "10.0.0.0/8",
+       "172.16.0.0/12",
+       "192.168.0.0/16",
+       "fc00::/7",
+       "fe80::/10"
+      ]
+     }
+    ],
+    "outbounds": [
+     {
+      "type": "socks",
+      "tag": "firefox-socks",
+      "server": "127.0.0.1",
+      "server_port": 10808,
+      "version": "5",
+      "network": "tcp"
+     },
+     {
+      "type": "block",
+      "tag": "block"
+     },
+     {
+      "type": "direct",
+      "tag": "direct"
+     }
+    ],
+    "route": {
+     "auto_detect_interface": true,
+     "rules": [
+      {
+       "network": "udp",
+       "port": 53,
+       "action": "hijack-dns"
+      },
+      {
+       "network": "udp",
+       "action": "route",
+       "outbound": "direct"
+      }
+     ],
+     "final": "firefox-socks",
+     "default_domain_resolver": "dns-direct"
+    }
+   }
+  }
+ ],
+ "sanitize": [
+  {
+   "changes": {
+    "auto_connect": true
+   },
+   "ok": {
+    "auto_connect": true,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "auto_connect": 1
+   },
+   "fa": "مقدار باید روشن یا خاموش باشد.",
+   "en": "The value must be on or off."
+  },
+  {
+   "changes": {
+    "log_level": "debug"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "debug",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "log_level": "loud"
+   },
+   "fa": "گزینه نامعتبر است.",
+   "en": "Invalid option."
+  },
+  {
+   "changes": {
+    "direct_apps": "a.exe, b.exe\nc.exe"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [
+     "a.exe",
+     "b.exe",
+     "c.exe"
+    ],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "direct_apps": [
+     "..",
+     "ok.exe"
+    ]
+   },
+   "fa": "نام برنامه نامعتبر است: ..",
+   "en": "Invalid program name: .."
+  },
+  {
+   "changes": {
+    "direct_apps": "bad/name.exe"
+   },
+   "fa": "نام برنامه نامعتبر است: bad/name.exe",
+   "en": "Invalid program name: bad/name.exe"
+  },
+  {
+   "changes": {
+    "direct_domains": "*.Example.COM., b.org"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [
+     "example.com",
+     "b.org"
+    ],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "direct_domains": "-bad-.com"
+   },
+   "fa": "دامنه نامعتبر است: -bad-.com",
+   "en": "Invalid domain: -bad-.com"
+  },
+  {
+   "changes": {
+    "direct_domains": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+    ]
+   },
+   "fa": "دامنه نامعتبر است: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com",
+   "en": "Invalid domain: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+  },
+  {
+   "changes": {
+    "direct_cidrs": "10.0.0.5/8, 1.2.3.4, ::1"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [
+     "10.0.0.0/8",
+     "1.2.3.4/32",
+     "::1/128"
+    ],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "direct_cidrs": "0.0.0.0/0"
+   },
+   "fa": "مسیر پیش‌فرض (/0) مجاز نیست.",
+   "en": "A default route (/0) is not allowed."
+  },
+  {
+   "changes": {
+    "direct_cidrs": "nope"
+   },
+   "fa": "IP یا CIDR نامعتبر است: nope",
+   "en": "Invalid IP or CIDR: nope"
+  },
+  {
+   "changes": {
+    "dns_server": "8.8.8.8"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "8.8.8.8",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "dns_server": "0.0.0.0"
+   },
+   "fa": "آدرس DNS نامعتبر است.",
+   "en": "The DNS address is not valid."
+  },
+  {
+   "changes": {
+    "dns_server": "224.0.0.1"
+   },
+   "fa": "آدرس DNS نامعتبر است.",
+   "en": "The DNS address is not valid."
+  },
+  {
+   "changes": {
+    "dns_server": "dns.google"
+   },
+   "fa": "آدرس DNS باید یک آدرس IP معتبر باشد.",
+   "en": "The DNS address must be a valid IP address."
+  },
+  {
+   "changes": {
+    "dns_path": "dq"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dq",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "dns_path": ""
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "dns_path": "/a b"
+   },
+   "fa": "مسیر DoH نامعتبر است.",
+   "en": "Invalid DoH path."
+  },
+  {
+   "changes": {
+    "tun_mtu": 1500
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 1500,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "tun_mtu": "0"
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "tun_mtu": 1000
+   },
+   "fa": "MTU باید 0 (خودکار) یا بین 1280 تا 9000 باشد.",
+   "en": "MTU must be 0 (automatic) or between 1280 and 9000."
+  },
+  {
+   "changes": {
+    "tun_mtu": "abc"
+   },
+   "fa": "MTU باید عدد باشد.",
+   "en": "MTU must be a number."
+  },
+  {
+   "changes": {
+    "tun_mtu": ""
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  },
+  {
+   "changes": {
+    "nope": 1
+   },
+   "fa": "تنظیم ناشناخته: nope",
+   "en": "Unknown setting: nope"
+  },
+  {
+   "changes": {
+    "ipv6": "yes"
+   },
+   "fa": "مقدار باید روشن یا خاموش باشد.",
+   "en": "The value must be on or off."
+  },
+  {
+   "changes": {
+    "direct_apps": 5
+   },
+   "fa": "مقدار باید فهرست باشد.",
+   "en": "The value must be a list."
+  },
+  {
+   "changes": {
+    "tun_stack": "mixed",
+    "strict_route": false
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "mixed",
+    "tun_mtu": 0,
+    "strict_route": false
+   }
+  },
+  {
+   "changes": {
+    "direct_apps": [
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x",
+     "x"
+    ]
+   },
+   "ok": {
+    "auto_connect": false,
+    "autostart": false,
+    "log_level": "info",
+    "bypass_lan": true,
+    "ipv6": true,
+    "udp_policy": "block",
+    "direct_apps": [
+     "x"
+    ],
+    "direct_domains": [],
+    "direct_cidrs": [],
+    "dns_type": "https",
+    "dns_server": "1.1.1.1",
+    "dns_path": "/dns-query",
+    "dns_strategy": "prefer_ipv4",
+    "direct_dns": "1.1.1.1",
+    "tun_stack": "auto",
+    "tun_mtu": 0,
+    "strict_route": true
+   }
+  }
+ ],
+ "defaults": {
+  "auto_connect": false,
+  "autostart": false,
+  "log_level": "info",
+  "bypass_lan": true,
+  "ipv6": true,
+  "udp_policy": "block",
+  "direct_apps": [],
+  "direct_domains": [],
+  "direct_cidrs": [],
+  "dns_type": "https",
+  "dns_server": "1.1.1.1",
+  "dns_path": "/dns-query",
+  "dns_strategy": "prefer_ipv4",
+  "direct_dns": "1.1.1.1",
+  "tun_stack": "auto",
+  "tun_mtu": 0,
+  "strict_route": true
+ }
+}

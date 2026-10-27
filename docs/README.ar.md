@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -31,6 +31,10 @@
 ## نظرة عامة
 
 RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Windows**، بواجهة بسيطة وموحدة تتحدث لغتك. يضم هذا المستودع الشيفرة المصدرية والوثائق، وتُنشر النسخ الجاهزة للاستخدام على صفحة [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
+
+### الجديد في الإصدار v1.0.1
+
+أُعيدت كتابة تطبيق Windows في هذا الإصدار من **Python إلى Go**. كان تطبيق Windows في `v1.0.0` مبنيًا باستخدام Python، أما بدءًا من `v1.0.1` فيعتمد على Go. ويظل تطبيق Android مشروعًا منفصلًا مبنيًا على Android/Kotlin.
 
 ## الميزات
 
@@ -100,7 +104,7 @@ cd RxFoxyVPN
 </div>
 
 - **Android**: افتح المجلد `Android/` في Android Studio وانتظر اكتمال مزامنة Gradle (راجع ملفات Gradle لمعرفة إصدارات JDK وAndroid SDK المطلوبة)، ثم شغّل التطبيق أو استخدم *Build → Build APK(s)*.
-- **Windows**: توجد الشيفرة المصدرية وسكربتات التغليف في `Windows/`؛ ثبّت الاعتماديات المذكورة في المشروع ثم شغّل التطبيق أو قم بتغليفه.
+- **Windows**: كُتب تطبيق Windows الجديد باستخدام Go. راجع الشيفرة المصدرية وتعليمات البناء الخاصة بـ Windows في المستودع، واتبع متطلبات Go وبناء واجهة الويب المحددة في إعدادات المشروع.
 
 قد تختلف خطوات البناء حسب بيئتك، وتبقى ملفات الإعداد في المستودع هي المرجع.
 
@@ -112,7 +116,7 @@ cd RxFoxyVPN
 
 ```text
 Android/    تطبيق Android (Kotlin / Gradle)
-Windows/    تطبيق Windows (Python / واجهة ويب)
+Windows/    تطبيق Windows (Go / واجهة ويب)
 docs/       ملفات README المترجمة
 ```
 

@@ -157,6 +157,7 @@ fun LoginScreen(
 
     val scope = rememberCoroutineScope()
     val currentLang by LanguageManager.currentLang.collectAsState()
+    val selectedLang by LanguageManager.selectedLang.collectAsState()
 
     val langNames = mapOf(
         "en" to "English",
@@ -517,7 +518,7 @@ fun LoginScreen(
 
     if (showLanguageDialog) {
         LanguagePickerDialog(
-            currentTag = currentLang,
+            currentTag = selectedLang,
             onDismiss = { showLanguageDialog = false },
             onConfirm = { newLang ->
                 LanguageManager.setLanguage(context, newLang)
@@ -914,6 +915,7 @@ private fun LanguagePickerDialog(
 ) {
     var selected by remember { mutableStateOf(currentTag) }
     val languages = listOf(
+        "auto" to LanguageManager.t("auto", "Automatic"),
         "en" to "English",
         "fa" to "فارسی",
         "ar" to "العربية",

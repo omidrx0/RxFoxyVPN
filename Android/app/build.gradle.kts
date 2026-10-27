@@ -28,7 +28,7 @@ tasks.matching { it.name.startsWith("externalNativeBuild") || it.name.contains("
     .configureEach { dependsOn(fetchHevSocks5Tunnel) }
 tasks.named("preBuild").configure { dependsOn(fetchHevSocks5Tunnel) }
 
-val releaseKeystoreFile = rootProject.file("release.jks")
+val releaseKeystoreFile = rootProject.file("foxyvpn-release.jks")
 
 val releaseKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val releaseKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
@@ -50,7 +50,7 @@ android {
 minSdk = 26
         targetSdk = 35
         versionCode = 3
-        versionName = "1.0.0"
+        versionName = "1.0.1"
 
         externalNativeBuild {
             ndkBuild {

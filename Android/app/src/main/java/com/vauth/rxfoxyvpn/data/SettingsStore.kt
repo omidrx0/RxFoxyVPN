@@ -46,6 +46,10 @@ class SettingsStore(context: Context) {
         } ?: ThemeMode.DARK
         set(value) { prefs.edit().putString(KEY_THEME_MODE, value.name).apply() }
 
+    var tunnelMtu: Int
+        get() = prefs.getInt(KEY_TUNNEL_MTU, DEFAULT_TUNNEL_MTU).coerceIn(MIN_TUNNEL_MTU, MAX_TUNNEL_MTU)
+        set(value) { prefs.edit().putInt(KEY_TUNNEL_MTU, value.coerceIn(MIN_TUNNEL_MTU, MAX_TUNNEL_MTU)).apply() }
+
     var exitCheckEnabled: Boolean
         get() = prefs.getBoolean(KEY_EXIT_CHECK, true)
         set(value) { prefs.edit().putBoolean(KEY_EXIT_CHECK, value).apply() }
@@ -153,6 +157,7 @@ class SettingsStore(context: Context) {
     companion object {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_EXIT_CHECK = "exit_check_enabled"
+        private const val KEY_TUNNEL_MTU = "tunnel_mtu"
         private const val KEY_SOCKS_BIND_ADDRESS = "socks_bind_address"
         private const val KEY_SOCKS_PORT = "socks_port"
         private const val KEY_DOH_PROVIDER = "doh_provider"
@@ -167,6 +172,9 @@ class SettingsStore(context: Context) {
         private const val KEY_UPSTREAM_PROXY_USERNAME = "upstream_proxy_username"
         private const val KEY_UPSTREAM_PROXY_PASSWORD = "upstream_proxy_password"
         private const val KEY_EXCLUDED_APPS = "excluded_apps"
+        const val DEFAULT_TUNNEL_MTU = 1400
+        const val MIN_TUNNEL_MTU = 1280
+        const val MAX_TUNNEL_MTU = 9000
         const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1"
         const val DEFAULT_SOCKS_PORT = 1080
         const val DEFAULT_UPSTREAM_PROXY_PORT = 1080

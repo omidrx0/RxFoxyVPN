@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.LocalAppLanguage
 import com.vauth.rxfoxyvpn.ui.navigation.RxFoxyNavGraph
+import com.vauth.rxfoxyvpn.ui.screens.AndroidUpdateDialog
 import com.vauth.rxfoxyvpn.ui.theme.RxFoxyVpnTheme
 import com.vauth.rxfoxyvpn.ui.theme.rememberThemeController
 import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
@@ -94,13 +96,21 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         val navController = rememberNavController()
-                        RxFoxyNavGraph(
-                            navController = navController,
-                            app = app,
-                            themeController = themeController,
-                            onRequestConnect = { requestConnect() },
-                            onDisconnect = { RxFoxyVpnService.stop(this) },
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            RxFoxyNavGraph(
+                                navController = navController,
+                                app = app,
+                                themeController = themeController,
+                                onRequestConnect = { requestConnect() },
+                                onDisconnect = { RxFoxyVpnService.stop(this@MainActivity) },
+                            )
+                            // Silently check GitHub at app startup; only show a dialog when a newer release exists.
+                            AndroidUpdateDialog(
+                                onDismiss = {},
+                                autoCheck = true,
+                                onlyShowWhenAvailable = true,
+                            )
+                        }
                     }
                 }
             }
