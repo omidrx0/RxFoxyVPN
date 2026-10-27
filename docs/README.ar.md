@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -32,9 +32,9 @@
 
 RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Windows**، بواجهة بسيطة وموحدة تتحدث لغتك. يضم هذا المستودع الشيفرة المصدرية والوثائق، وتُنشر النسخ الجاهزة للاستخدام على صفحة [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
 
-### الجديد في الإصدار v1.0.1
+### الجديد في الإصدار v1.0.2
 
-أُعيدت كتابة تطبيق Windows في هذا الإصدار من **Python إلى Go**. كان تطبيق Windows في `v1.0.0` مبنيًا باستخدام Python، أما بدءًا من `v1.0.1` فيعتمد على Go. ويظل تطبيق Android مشروعًا منفصلًا مبنيًا على Android/Kotlin.
+أُعيدت كتابة تطبيق Windows في هذا الإصدار من **Python إلى Go**. كان تطبيق Windows في `v1.0.0` مبنيًا باستخدام Python، أما بدءًا من `v1.0.2` فيعتمد على Go. ويظل تطبيق Android مشروعًا منفصلًا مبنيًا على Android/Kotlin.
 
 ## الميزات
 

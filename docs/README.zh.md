@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,9 +30,9 @@
 
 RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简洁统一、支持你所用语言的界面。本仓库包含源代码和文档；可直接使用的构建版本发布在 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) 页面。
 
-### v1.0.1 新变化
+### v1.0.2 新变化
 
-此版本将 Windows 应用从 **Python 重写为 Go**。`v1.0.0` 的 Windows 应用基于 Python；从 `v1.0.1` 开始，Windows 版本采用 Go 实现。Android 应用仍是独立的 Android/Kotlin 项目。
+此版本将 Windows 应用从 **Python 重写为 Go**。`v1.0.0` 的 Windows 应用基于 Python；从 `v1.0.2` 开始，Windows 版本采用 Go 实现。Android 应用仍是独立的 Android/Kotlin 项目。
 
 ## 功能
 

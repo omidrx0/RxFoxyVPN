@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.1-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,9 +30,9 @@
 
 RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝트로, 사용자의 언어를 지원하는 간결하고 일관된 인터페이스를 제공합니다. 이 저장소에는 소스 코드와 문서가 있으며, 바로 사용할 수 있는 빌드는 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) 페이지에 게시됩니다.
 
-### v1.0.1의 새로운 기능
+### v1.0.2의 새로운 기능
 
-이번 버전에서 Windows 애플리케이션을 **Python에서 Go로 다시 작성했습니다**. `v1.0.0`의 Windows 앱은 Python 기반이었으며, `v1.0.1`부터는 Go 기반 구현을 사용합니다. Android 앱은 별도의 Android/Kotlin 프로젝트로 유지됩니다.
+이번 버전에서 Windows 애플리케이션을 **Python에서 Go로 다시 작성했습니다**. `v1.0.0`의 Windows 앱은 Python 기반이었으며, `v1.0.2`부터는 Go 기반 구현을 사용합니다. Android 앱은 별도의 Android/Kotlin 프로젝트로 유지됩니다.
 
 ## 주요 기능
 
