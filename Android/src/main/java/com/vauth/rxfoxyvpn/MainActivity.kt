@@ -23,7 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.LocalAppLanguage
 import com.vauth.rxfoxyvpn.ui.navigation.RxFoxyNavGraph
-import com.vauth.rxfoxyvpn.ui.screens.AndroidUpdateDialog
+import com.vauth.rxfoxyvpn.ui.screens.AutomaticUpdatePrompt
 import com.vauth.rxfoxyvpn.ui.theme.RxFoxyVpnTheme
 import com.vauth.rxfoxyvpn.ui.theme.rememberThemeController
 import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
@@ -104,12 +104,7 @@ class MainActivity : ComponentActivity() {
                                 onRequestConnect = { requestConnect() },
                                 onDisconnect = { RxFoxyVpnService.stop(this@MainActivity) },
                             )
-                            // Silently check GitHub at app startup; only show a dialog when a newer release exists.
-                            AndroidUpdateDialog(
-                                onDismiss = {},
-                                autoCheck = true,
-                                onlyShowWhenAvailable = true,
-                            )
+                            AutomaticUpdatePrompt()
                         }
                     }
                 }
