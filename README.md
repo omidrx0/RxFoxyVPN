@@ -1,18 +1,19 @@
-<div align="center">
-
-<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="RXFoxyVPN logo" width="140">
-
 # RXFoxyVPN
 
 **Your Freedom, Our Priority.**
 
-A fast, clean and multilingual VPN client for **Android** and **Windows**.
+A fast, clean and multilingual VPN client for Android and Windows.
 
+<<<<<<< HEAD
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+=======
 <br>
 
 [![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
@@ -72,62 +73,18 @@ Minimum supported version: **Android 8.0**.
     </tr>
   </table>
 </div>
+>>>>>>> f1e9d32795a84dc67a8e2ca87f18df9e1df5723a
 
 ## Download
 
-Get the latest build from **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)**.
+Get the latest build from [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
 
 | Platform | File | Notes |
-| --- | --- | --- |
-| Android | `.apk` | Allow installs from your browser/file manager if Android asks. |
-| Windows | Portable `.exe` or `.zip` | No installer needed. Extract the ZIP (if used) and run. |
+|---|---|---|
+| Android | `.apk` | Android 8.0 and above. |
+| Windows | Portable `.exe` or `.zip` | Run the executable directly, or extract the ZIP first. |
+| Windows | Setup `.exe` | Run the installer and follow the setup steps. |
 
-> [!NOTE]
-> If the repository or its releases are not visible to you, access may be restricted. Ask the maintainer for access.
+## What's new in v1.0.3
 
-## Build from source
-
-<details>
-<summary>Show build instructions</summary>
-
-<br>
-
-Clone the repository:
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
-```
-
-- **Android**: open the `Android/` folder in Android Studio, let Gradle sync (check the Gradle files for the required JDK and Android SDK), then run the app or use *Build → Build APK(s)*.
-- **Windows**: the Windows application is now written in Go. See the Windows source and build instructions in the repository, then follow the project's Go and frontend build requirements.
-
-Build steps may vary with your environment. The configuration files in the repository are the source of truth.
-
-</details>
-
-## Project structure
-
-```text
-Android/    Android application (Kotlin / Gradle)
-Windows/    Windows application (Go / web UI)
-docs/       Translated README files
-```
-
-## Contributing
-
-Suggestions, bug reports and pull requests are welcome. Please open an issue first for larger changes so we can discuss the approach.
-
-## License
-
-Usage and redistribution terms are defined by the repository's `LICENSE` file. If none is present, all rights are reserved by the author.
-
----
-
-<div align="center">
-
-<sub>**RXFoxyVPN** · Android & Windows · [GitHub repository](https://github.com/omidrx0/RxFoxyVPN)</sub>
-
-<sub><i>Your Freedom, Our Priority.</i></sub>
-
-</div>
+The Windows Firefox Accounts sign-in flow, authentication, HTTP compatibility, cookie handling and verification flow were updated to address HTTP `406 Not Acceptable` issues. HAWK and PBKDF2/HKDF reference tests and `gofmt` checks passed; full Windows build and real-account sign-in verification remain pending.

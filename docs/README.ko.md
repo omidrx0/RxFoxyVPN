@@ -1,18 +1,19 @@
-<div align="center">
-
-<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="RXFoxyVPN 로고" width="140">
-
 # RXFoxyVPN
 
-**당신의 자유가 우리의 우선순위입니다.**
+**여러분의 자유가 우리의 최우선입니다.**
 
-빠르고 깔끔하며 다국어를 지원하는 **Android** 및 **Windows**용 VPN 클라이언트입니다.
+Android와 Windows를 위한 빠른 다국어 VPN 클라이언트입니다.
 
+<<<<<<< HEAD
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+=======
 <br>
 
 [![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
@@ -72,62 +73,18 @@ RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝�
     </tr>
   </table>
 </div>
+>>>>>>> f1e9d32795a84dc67a8e2ca87f18df9e1df5723a
 
 ## 다운로드
 
-최신 빌드는 **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)**에서 받을 수 있습니다.
+최신 버전은 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)에서 받을 수 있습니다.
 
-| 플랫폼 | 파일 | 참고 |
-| --- | --- | --- |
-| Android | `.apk` | Android에서 요청하면 브라우저 또는 파일 관리자의 설치를 허용하세요. |
-| Windows | 포터블 `.exe` 또는 `.zip` | 설치가 필요 없습니다. ZIP이라면 압축을 풀고 실행하세요. |
+| 플랫폼 | 파일 | 설명 |
+|---|---|---|
+| Android | `.apk` | Android 8.0 이상 지원. |
+| Windows | Portable `.exe` 또는 `.zip` | EXE를 바로 실행하거나 ZIP을 압축 해제하세요. |
+| Windows | Setup `.exe` | 설치 프로그램을 실행하고 안내를 따르세요. |
 
-> [!NOTE]
-> 저장소나 릴리스가 보이지 않는다면 접근이 제한되어 있을 수 있습니다. 관리자에게 접근 권한을 요청하세요.
+## 버전 1.0.3 업데이트
 
-## 소스에서 빌드
-
-<details>
-<summary>빌드 방법 보기</summary>
-
-<br>
-
-저장소를 클론합니다:
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
-```
-
-- **Android**: Android Studio에서 `Android/` 폴더를 열고 Gradle 동기화가 끝나길 기다린 뒤(필요한 JDK 및 Android SDK 버전은 Gradle 설정 확인) 앱을 실행하거나 *Build → Build APK(s)*를 사용하세요.
-- **Windows**: 새 Windows 앱은 Go로 작성되었습니다. 저장소의 Windows 소스 코드와 빌드 안내를 확인하고, 프로젝트 설정에 명시된 Go 및 웹 UI 빌드 요구 사항을 따르세요.
-
-빌드 절차는 환경에 따라 다를 수 있으며, 저장소의 설정 파일이 기준입니다.
-
-</details>
-
-## 프로젝트 구조
-
-```text
-Android/    Android 앱 (Kotlin / Gradle)
-Windows/    Windows 앱 (Go / 웹 UI)
-docs/       번역된 README 파일
-```
-
-## 기여하기
-
-제안, 버그 신고, Pull Request를 환영합니다. 큰 변경은 먼저 Issue를 열어 방향을 논의해 주세요.
-
-## 라이선스
-
-사용 및 재배포 조건은 저장소의 `LICENSE` 파일에 따릅니다. 해당 파일이 없으면 모든 권리는 저작자에게 있습니다.
-
----
-
-<div align="center">
-
-<sub>**RXFoxyVPN** · Android 및 Windows · [GitHub 저장소](https://github.com/omidrx0/RxFoxyVPN)</sub>
-
-<sub><i>당신의 자유가 우리의 우선순위입니다.</i></sub>
-
-</div>
+Windows Firefox 계정 로그인, 인증, HTTP 호환성, 쿠키 처리 및 계정 확인 흐름을 개선하여 `406 Not Acceptable` 문제를 해결하도록 했습니다. HAWK 및 PBKDF2/HKDF 참조 테스트와 `gofmt` 검사는 통과했으며, Windows 전체 빌드와 실제 계정 로그인 테스트는 아직 남아 있습니다.

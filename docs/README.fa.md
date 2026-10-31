@@ -1,18 +1,19 @@
-<div align="center" dir="rtl">
-
-<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="لوگوی RXFoxyVPN" width="140">
-
 # RXFoxyVPN
 
-**آزادی شما، اولویت ما.**
+**آزادی شما، اولویت ماست.**
 
-یک کلاینت VPN سریع، ساده و چندزبانه برای **اندروید** و **ویندوز**.
+کلاینت VPN سریع و چندزبانه برای اندروید و ویندوز.
 
+<<<<<<< HEAD
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+=======
 <br>
 
 [![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
@@ -74,72 +75,18 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
     </tr>
   </table>
 </div>
+>>>>>>> f1e9d32795a84dc67a8e2ca87f18df9e1df5723a
 
 ## دانلود
 
-آخرین نسخه را از **[Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** دریافت کنید.
+آخرین نسخه را از [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) دریافت کنید.
 
 | پلتفرم | فایل | توضیحات |
-| --- | --- | --- |
-| اندروید | `.apk` | اگر اندروید درخواست کرد، اجازهٔ نصب از مرورگر یا مدیر فایل را فعال کنید. |
-| ویندوز | فایل `.exe` قابل‌حمل یا `.zip` | نیازی به نصب نیست. در صورت ZIP بودن، آن را استخراج و اجرا کنید. |
+|---|---|---|
+| اندروید | `.apk` | پشتیبانی از Android 8.0 و بالاتر. |
+| ویندوز | Portable `.exe` یا `.zip` | فایل اجرایی را مستقیم اجرا کنید یا ZIP را استخراج کنید. |
+| ویندوز | Setup `.exe` | فایل نصب را اجرا و مراحل نصب را دنبال کنید. |
 
-> [!NOTE]
-> اگر مخزن یا Releaseها را نمی‌بینید، ممکن است دسترسی محدود باشد؛ از مسئول پروژه درخواست دسترسی کنید.
+## تغییرات نسخه 1.0.3
 
-## ساخت از روی سورس
-
-<details>
-<summary>نمایش مراحل ساخت</summary>
-
-<br>
-
-مخزن را کلون کنید:
-
-<div dir="ltr">
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
-```
-
-</div>
-
-- **اندروید:** پوشهٔ `Android/` را در Android Studio باز کنید، صبر کنید Gradle همگام‌سازی شود (نسخه‌های موردنیاز JDK و Android SDK را در فایل‌های Gradle ببینید) و سپس برنامه را اجرا کنید یا از *Build → Build APK(s)* استفاده کنید.
-- **ویندوز:** نسخهٔ جدید برنامه با Go نوشته شده است. سورس‌کد و دستورالعمل‌های ساخت نسخهٔ ویندوز را در مخزن دنبال کنید و پیش‌نیازهای Go و رابط وب را مطابق تنظیمات پروژه آماده کنید.
-
-مراحل ساخت ممکن است بسته به محیط شما متفاوت باشد؛ فایل‌های پیکربندی مخزن مرجع اصلی هستند.
-
-</details>
-
-## ساختار پروژه
-
-<div dir="ltr">
-
-```text
-Android/    برنامهٔ اندروید (Kotlin / Gradle)
-Windows/    برنامهٔ ویندوز (Go / رابط وب)
-docs/       فایل‌های README ترجمه‌شده
-```
-
-</div>
-
-## مشارکت
-
-پیشنهادها، گزارش باگ و Pull Requestها قابل‌قبول هستند. برای تغییرات بزرگ، لطفاً ابتدا یک Issue باز کنید تا دربارهٔ رویکرد گفتگو کنیم.
-
-## مجوز
-
-شرایط استفاده و بازتوزیع در فایل `LICENSE` مخزن مشخص شده است. در صورت نبود این فایل، همهٔ حقوق برای نویسنده محفوظ است.
-
-</div>
-
----
-
-<div align="center" dir="rtl">
-
-<sub>**RXFoxyVPN** · اندروید و ویندوز · [مخزن گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN)</sub>
-
-<sub><i>آزادی شما، اولویت ما.</i></sub>
-
-</div>
+روند ورود به Firefox Accounts در ویندوز، احراز هویت، سازگاری HTTP، مدیریت کوکی‌ها و تأیید حساب به‌روزرسانی شده‌اند تا مشکلات HTTP `406 Not Acceptable` برطرف شوند. تست‌های مرجع HAWK و PBKDF2/HKDF و بررسی `gofmt` موفق بوده‌اند؛ ساخت کامل ویندوز و آزمایش ورود با حساب واقعی هنوز باقی مانده است.

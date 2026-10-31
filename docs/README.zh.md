@@ -1,18 +1,19 @@
-<div align="center">
-
-<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="RXFoxyVPN 标志" width="140">
-
 # RXFoxyVPN
 
-**你的自由，我们的优先。**
+**您的自由，我们的首要任务。**
 
-一款快速、简洁、支持多语言的 **Android** 与 **Windows** VPN 客户端。
+适用于 Android 和 Windows 的快速多语言 VPN 客户端。
 
+<<<<<<< HEAD
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+=======
 <br>
 
 [![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
@@ -72,62 +73,18 @@ RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简�
     </tr>
   </table>
 </div>
+>>>>>>> f1e9d32795a84dc67a8e2ca87f18df9e1df5723a
 
 ## 下载
 
-请从 **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** 获取最新构建。
+请从 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) 获取最新版本。
 
 | 平台 | 文件 | 说明 |
-| --- | --- | --- |
-| Android | `.apk` | 如 Android 提示，请允许从浏览器或文件管理器安装应用。 |
-| Windows | 便携版 `.exe` 或 `.zip` | 无需安装。如为 ZIP，请先解压再运行。 |
+|---|---|---|
+| Android | `.apk` | 支持 Android 8.0 及更高版本。 |
+| Windows | Portable `.exe` 或 `.zip` | 直接运行 EXE，或先解压 ZIP。 |
+| Windows | Setup `.exe` | 运行安装程序并按照提示操作。 |
 
-> [!NOTE]
-> 如果你看不到仓库或发行版，可能是访问受限，请联系维护者获取权限。
+## 1.0.3 版本更新
 
-## 从源代码构建
-
-<details>
-<summary>展开构建说明</summary>
-
-<br>
-
-克隆仓库：
-
-```bash
-git clone https://github.com/omidrx0/RxFoxyVPN.git
-cd RxFoxyVPN
-```
-
-- **Android**：在 Android Studio 中打开 `Android/` 目录，等待 Gradle 同步完成（所需 JDK 与 Android SDK 版本请查看 Gradle 配置），然后运行应用，或使用 *Build → Build APK(s)*。
-- **Windows**：新版 Windows 应用使用 Go 编写。请查看仓库中的 Windows 源代码和构建说明，并按照项目配置准备 Go 与 Web UI 构建所需环境。
-
-构建步骤可能因环境而异，请以仓库中的配置文件为准。
-
-</details>
-
-## 项目结构
-
-```text
-Android/    Android 应用（Kotlin / Gradle）
-Windows/    Windows 应用（Go / Web 界面）
-docs/       多语言 README 文件
-```
-
-## 参与贡献
-
-欢迎提出建议、报告问题和提交 Pull Request。较大的改动请先创建 Issue，以便讨论方案。
-
-## 许可
-
-使用与再分发条款以仓库中的 `LICENSE` 文件为准。如无该文件，则作者保留所有权利。
-
----
-
-<div align="center">
-
-<sub>**RXFoxyVPN** · Android 与 Windows · [GitHub 仓库](https://github.com/omidrx0/RxFoxyVPN)</sub>
-
-<sub><i>你的自由，我们的优先。</i></sub>
-
-</div>
+改进了 Windows Firefox 账户登录、身份验证、HTTP 兼容性、Cookie 处理和账户验证，以处理 `406 Not Acceptable` 问题。HAWK、PBKDF2/HKDF 参考测试和 `gofmt` 检查已通过；完整 Windows 构建和真实账户登录测试仍待完成。
