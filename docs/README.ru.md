@@ -76,12 +76,72 @@ RXFoxyVPN — кроссплатформенный проект для **Android
 
 ## Загрузки
 
-Последнюю сборку можно скачать на **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)**.
+Последнюю сборку можно скачать на **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** — или выберите пакет, подходящий вашему устройству.
 
-| Платформа | Файл | Примечания |
-| --- | --- | --- |
-| Android | `.apk` | Если Android попросит, разрешите установку из браузера или файлового менеджера. |
-| Windows | Портативный `.exe` или `.zip` | Установка не требуется. Распакуйте ZIP (если он используется) и запустите. |
+<table width="100%">
+  <thead>
+    <tr>
+      <th align="center" width="18%">Платформа</th>
+      <th align="center" width="24%">Загрузка</th>
+      <th align="left">Подходит для</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5" align="center">
+        <img src="https://img.shields.io/badge/-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android"><br>
+        <sub>Android 8.0 и выше</sub>
+      </td>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-universal-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a>
+      </td>
+      <td><b>Лучший выбор, если не уверены.</b><br><sub>Работает на всех устройствах и архитектурах.</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-arm64-v8a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a>
+      </td>
+      <td>Современные телефоны и планшеты.<br><sub>64-битные процессоры ARM.</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-armeabi-v7a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a>
+      </td>
+      <td>Старые устройства Android.<br><sub>32-битные процессоры ARM.</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86_64-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a>
+      </td>
+      <td>Устройства Intel/AMD и эмуляторы.<br><sub>64-бит.</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a>
+      </td>
+      <td>Устройства Intel/AMD и эмуляторы.<br><sub>32-бит.</sub></td>
+    </tr>
+    <tr>
+      <td rowspan="2" align="center">
+        <img src="https://img.shields.io/badge/-Windows-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows"><br>
+        <sub>Windows 10 и выше</sub>
+      </td>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a>
+      </td>
+      <td><b>Стандартный установщик для 64-битных ПК.</b> ⭐<br><sub>Создаёт ярлыки и легко удаляется.</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a>
+      </td>
+      <td>Установка не требуется.<br><sub>Распакуйте ZIP и запустите.</sub></td>
+    </tr>
+  </tbody>
+</table>
+
+> [!TIP]
+> Не знаете, какая архитектура Android вам нужна? Выберите **Universal**. Если Android попросит, разрешите установку из браузера или файлового менеджера.
 
 > [!NOTE]
 > Если репозиторий или релизы вам не видны, доступ может быть ограничен — запросите его у владельца проекта.

@@ -76,12 +76,72 @@ RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简�
 
 ## 下载
 
-请从 **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** 获取最新构建。
+请从 **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)** 获取最新构建，或选择适合你设备的安装包。
 
-| 平台 | 文件 | 说明 |
-| --- | --- | --- |
-| Android | `.apk` | 如 Android 提示，请允许从浏览器或文件管理器安装应用。 |
-| Windows | 便携版 `.exe` 或 `.zip` | 无需安装。如为 ZIP，请先解压再运行。 |
+<table width="100%">
+  <thead>
+    <tr>
+      <th align="center" width="18%">平台</th>
+      <th align="center" width="24%">下载</th>
+      <th align="left">适用于</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5" align="center">
+        <img src="https://img.shields.io/badge/-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android"><br>
+        <sub>Android 8.0 及以上</sub>
+      </td>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-universal-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a>
+      </td>
+      <td><b>不确定时的最佳选择。</b><br><sub>适用于所有设备和架构。</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-arm64-v8a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a>
+      </td>
+      <td>新款手机和平板。<br><sub>64 位 ARM 处理器。</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-armeabi-v7a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a>
+      </td>
+      <td>较旧的 Android 设备。<br><sub>32 位 ARM 处理器。</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86_64-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a>
+      </td>
+      <td>Intel/AMD 设备和模拟器。<br><sub>64 位。</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a>
+      </td>
+      <td>Intel/AMD 设备和模拟器。<br><sub>32 位。</sub></td>
+    </tr>
+    <tr>
+      <td rowspan="2" align="center">
+        <img src="https://img.shields.io/badge/-Windows-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows"><br>
+        <sub>Windows 10 及以上</sub>
+      </td>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a>
+      </td>
+      <td><b>适用于 64 位电脑的标准安装程序。</b> ⭐<br><sub>创建快捷方式，卸载方便。</sub></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a>
+      </td>
+      <td>无需安装。<br><sub>解压 ZIP 后运行。</sub></td>
+    </tr>
+  </tbody>
+</table>
+
+> [!TIP]
+> 不确定需要哪种 Android 架构？请选择 **Universal**。如 Android 提示，请允许从浏览器或文件管理器安装应用。
 
 > [!NOTE]
 > 如果你看不到仓库或发行版，可能是访问受限，请联系维护者获取权限。
