@@ -76,69 +76,73 @@ Minimum supported version: **Android 8.0**.
 
 ## Download
 
-Get the latest build from **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)**, or pick the package that best matches your device.
+Get the latest build from <a href="https://github.com/omidrx0/RxFoxyVPN/releases/latest"><b>GitHub Releases</b></a>, or pick the package that best matches your device.
 
-<table width="100%">
+<div align="center">
+
+<table>
   <thead>
     <tr>
-      <th align="center" width="18%">Platform</th>
-      <th align="center" width="24%">Download</th>
+      <th align="center">Platform</th>
+      <th align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Download&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
       <th align="left">Recommended For</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td rowspan="5" align="center">
+      <td rowspan="5" align="center" valign="middle">
         <img src="https://img.shields.io/badge/-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android"><br>
         <sub>Android 8.0+</sub>
       </td>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-universal-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a>
       </td>
-      <td><b>Best choice if you're unsure.</b> ⭐<br><sub>Works on all devices and architectures.</sub></td>
+      <td align="left" valign="middle"><b>Best choice if you're unsure.</b> ⭐<br><sub>Works on all devices and architectures.</sub></td>
     </tr>
     <tr>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-arm64-v8a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a>
       </td>
-      <td>Modern phones and tablets.<br><sub>64-bit ARM processors.</sub></td>
+      <td align="left" valign="middle">Modern phones and tablets.<br><sub>64-bit ARM processors.</sub></td>
     </tr>
     <tr>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-armeabi-v7a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a>
       </td>
-      <td>Older Android devices.<br><sub>32-bit ARM processors.</sub></td>
+      <td align="left" valign="middle">Older Android devices.<br><sub>32-bit ARM processors.</sub></td>
     </tr>
     <tr>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86_64-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a>
       </td>
-      <td>Intel/AMD devices and emulators.<br><sub>64-bit.</sub></td>
+      <td align="left" valign="middle">Intel/AMD devices and emulators.<br><sub>64-bit.</sub></td>
     </tr>
     <tr>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a>
       </td>
-      <td>Intel/AMD devices and emulators.<br><sub>32-bit.</sub></td>
+      <td align="left" valign="middle">Intel/AMD devices and emulators.<br><sub>32-bit.</sub></td>
     </tr>
     <tr>
-      <td rowspan="2" align="center">
+      <td rowspan="2" align="center" valign="middle">
         <img src="https://img.shields.io/badge/-Windows-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows"><br>
         <sub>Windows 10+</sub>
       </td>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a>
       </td>
-      <td><b>Standard installer for 64-bit PCs.</b> ⭐<br><sub>Adds shortcuts and easy uninstall.</sub></td>
+      <td align="left" valign="middle"><b>Standard installer for 64-bit PCs.</b> ⭐<br><sub>Adds shortcuts and easy uninstall.</sub></td>
     </tr>
     <tr>
-      <td align="center">
+      <td align="center" valign="middle">
         <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a>
       </td>
-      <td>No installation needed.<br><sub>Extract the ZIP and run.</sub></td>
+      <td align="left" valign="middle">No installation needed.<br><sub>Extract the ZIP and run.</sub></td>
     </tr>
   </tbody>
 </table>
+
+</div>
 
 > [!TIP]
 > Not sure which Android architecture you need? Choose **Universal**. If Android asks, allow installs from your browser or file manager.
