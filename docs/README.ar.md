@@ -80,14 +80,11 @@ RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Wind
 
 احصل على أحدث إصدار من <a href="https://github.com/omidrx0/RxFoxyVPN/releases/latest"><b>GitHub Releases</b></a> أو اختر الحزمة الأنسب لجهازك.
 
-<div align="center">
-
 <table dir="rtl">
   <thead>
     <tr>
       <th align="center">المنصة</th>
       <th align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;التنزيل&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
-      <th align="right">مناسب لـ</th>
     </tr>
   </thead>
   <tbody>
@@ -97,33 +94,33 @@ RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Wind
         <sub>Android 8.0 أو أحدث</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-universal-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-universal-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <b>الخيار الأفضل إن لم تكن متأكدًا.</b> ⭐<br><sub>يعمل على جميع الأجهزة والمعماريات.</sub>
       </td>
-      <td align="right" valign="middle"><b>الخيار الأفضل إن لم تكن متأكدًا.</b> ⭐<br><sub>يعمل على جميع الأجهزة والمعماريات.</sub></td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-arm64-v8a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-arm64-v8a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        الهواتف واللوحيات الحديثة.<br><sub>معالجات ARM بنظام 64 بت.</sub>
       </td>
-      <td align="right" valign="middle">الهواتف واللوحيات الحديثة.<br><sub>معالجات ARM بنظام 64 بت.</sub></td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-armeabi-v7a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-armeabi-v7a-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        أجهزة Android القديمة.<br><sub>معالجات ARM بنظام 32 بت.</sub>
       </td>
-      <td align="right" valign="middle">أجهزة Android القديمة.<br><sub>معالجات ARM بنظام 32 بت.</sub></td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86_64-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86_64-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        أجهزة Intel/AMD والمحاكيات.<br><sub>64 بت.</sub>
       </td>
-      <td align="right" valign="middle">أجهزة Intel/AMD والمحاكيات.<br><sub>64 بت.</sub></td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/app-x86-releaseV1.0.3.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        أجهزة Intel/AMD والمحاكيات.<br><sub>32 بت.</sub>
       </td>
-      <td align="right" valign="middle">أجهزة Intel/AMD والمحاكيات.<br><sub>32 بت.</sub></td>
     </tr>
     <tr>
       <td rowspan="2" align="center" valign="middle">
@@ -131,20 +128,18 @@ RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Wind
         <sub>Windows 10 أو أحدث</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <b>مثبّت قياسي لأجهزة 64 بت.</b> ⭐<br><sub>يضيف الاختصارات ويسهّل إزالة التثبيت.</sub>
       </td>
-      <td align="right" valign="middle"><b>مثبّت قياسي لأجهزة 64 بت.</b> ⭐<br><sub>يضيف الاختصارات ويسهّل إزالة التثبيت.</sub></td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.3/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        لا يحتاج إلى تثبيت.<br><sub>فك ضغط ملف ZIP ثم شغّل التطبيق.</sub>
       </td>
-      <td align="right" valign="middle">لا يحتاج إلى تثبيت.<br><sub>فك ضغط ملف ZIP ثم شغّل التطبيق.</sub></td>
     </tr>
   </tbody>
 </table>
-
-</div>
 
 > [!TIP]
 > إذا لم تكن متأكدًا من معمارية Android المناسبة، فاختر **Universal**. وإذا طلب Android ذلك، فاسمح بالتثبيت من المتصفح أو مدير الملفات.
