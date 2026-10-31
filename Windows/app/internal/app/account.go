@@ -37,6 +37,7 @@ func (a *App) Login(ctx context.Context, body Body) (any, error) {
 	if !data.Verified {
 		a.mu.Lock()
 		a.pendingSession, a.pendingEmail = data.SessionToken, email
+		a.pendingVerificationMethod = data.VerificationMethod
 		a.mu.Unlock()
 		return map[string]any{"need_code": true, "account_saved": accountSaved}, nil
 	}
@@ -54,6 +55,9 @@ func (a *App) finishLogin(ctx context.Context, sessionToken, email string) error
 	}
 	if err := a.account.StoreTokens(tokens); err != nil {
 		return err
+	}
+	if err := a.account.Fxa.DestroySession(ctx, sessionToken); err != nil {
+		slog.Info("temporary FxA session cleanup failed", "err", err)
 	}
 	a.quotaRefreshMu.Lock()
 	a.clearQuota()
@@ -98,7 +102,7 @@ func (a *App) DeleteSavedAccount(_ context.Context, body Body) (any, error) {
 func (a *App) Verify(ctx context.Context, body Body) (any, error) {
 	code := whitespaceRe.ReplaceAllString(str(body["code"]), "")
 	a.mu.RLock()
-	session, email := a.pendingSession, a.pendingEmail
+	session, email, verificationMethod := a.pendingSession, a.pendingEmail, a.pendingVerificationMethod
 	a.mu.RUnlock()
 	if session == "" {
 		return nil, apierr.New(locale.Tr("ابتدا با ایمیل و رمز عبور وارد شوید.",
@@ -107,14 +111,14 @@ func (a *App) Verify(ctx context.Context, body Body) (any, error) {
 	if code == "" {
 		return nil, apierr.New(locale.Tr("کد تأیید را وارد کنید.", "Enter the verification code."))
 	}
-	if err := a.account.Fxa.VerifyCode(ctx, session, code); err != nil {
+	if err := a.account.Fxa.VerifyCode(ctx, session, code, verificationMethod); err != nil {
 		return nil, err
 	}
 	if err := a.finishLogin(ctx, session, email); err != nil {
 		return nil, err
 	}
 	a.mu.Lock()
-	a.pendingSession, a.pendingEmail = "", ""
+	a.pendingSession, a.pendingEmail, a.pendingVerificationMethod = "", "", ""
 	a.mu.Unlock()
 	return map[string]any{"ok": true}, nil
 }
@@ -128,7 +132,7 @@ func (a *App) Logout(context.Context, Body) (any, error) {
 	}
 	a.quotaRefreshMu.Lock()
 	a.mu.Lock()
-	a.pendingSession, a.pendingEmail = "", ""
+	a.pendingSession, a.pendingEmail, a.pendingVerificationMethod = "", "", ""
 	a.mu.Unlock()
 	a.account.Clear()
 	a.clearQuotaFields()

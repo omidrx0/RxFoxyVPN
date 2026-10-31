@@ -2,9 +2,12 @@ package com.vauth.rxfoxyvpn.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,12 +19,14 @@ class FastlyChallengeError(message: String) : Exception(message)
 
 private const val SOLVE_TIMEOUT_SECONDS = 60L
 
-private const val MAX_POST_BACK_ROUNDS = 3
+private const val MAX_POST_BACK_ROUNDS = 8
 
 private const val SOLVER_USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 private const val POW_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+private val challengeSolveMutex = Mutex()
 
 private const val HTML_ACCEPT =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
@@ -34,18 +39,20 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
     private class NoChallengePage : Exception()
 
     suspend fun solveAndInstall() = withContext(Dispatchers.IO) {
-        var lastError: Exception? = null
-        for (base in listOf("https://api.accounts.firefox.com", "https://accounts.firefox.com")) {
-            try {
-                solveOnHost(base)
-                return@withContext
-            } catch (_: NoChallengePage) {
-                continue
-            } catch (e: FastlyChallengeError) {
-                lastError = e
+        challengeSolveMutex.withLock {
+            var lastError: Exception? = null
+            for (base in listOf("https://api.accounts.firefox.com", "https://accounts.firefox.com")) {
+                try {
+                    solveOnHost(base)
+                    return@withLock
+                } catch (_: NoChallengePage) {
+                    continue
+                } catch (e: FastlyChallengeError) {
+                    lastError = e
+                }
             }
+            throw lastError ?: FastlyChallengeError("host did not serve a Fastly challenge page")
         }
-        throw lastError ?: FastlyChallengeError("host did not serve a Fastly challenge page")
     }
 
     private fun baseOrigin(prefixUrl: String): String {
@@ -170,16 +177,21 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
                 put("auth", fetchPat(client, prefixUrl, token))
             }
             "clientmetrics" -> clientMetricsAnswer()
-            else -> throw FastlyChallengeError("unsupported Fastly challenge type '$type' (captcha cannot be solved automatically)")
+            "captcha" -> throw FastlyChallengeError(
+                "Fastly requires an image CAPTCHA; this direct-login UI has no interactive CAPTCHA step",
+            )
+            else -> throw FastlyChallengeError("unsupported Fastly challenge type '$type'")
         }
     }
 
-    private fun installChallengeCookies(solverJar: SimpleCookieJar) {
-        val cookies = solverJar.snapshotAll()
-        if (cookies.isEmpty()) throw FastlyChallengeError("challenge completed but no cookies were issued")
-        for (cookie in cookies) {
-            cookieJar.set(cookie.name, cookie.value, "firefox.com")
+    private fun installChallengeCookies(solverJar: SimpleCookieJar, pageUrl: String) {
+        val page = pageUrl.toHttpUrl()
+        val cookies = solverJar.snapshotFor(page)
+        if (cookies.isEmpty()) {
+            throw FastlyChallengeError("challenge completed but no applicable cookies were issued")
         }
+        // Preserve the exact cookie scope/expiry/security attributes from Fastly.
+        cookieJar.addAll(cookies)
     }
 
     private fun solveOnHost(base: String) {
@@ -188,6 +200,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
             .cookieJar(solverJar)
             .connectTimeout(SOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(SOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(SOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
         val pageUrl = "$base/"
@@ -224,7 +237,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
                 if (body.optString("status") == "success") {
                     val (_, stillChallenged) = fetchChallengePage(solver, pageUrl)
                     if (stillChallenged) throw FastlyChallengeError("challenge cookie not accepted on this exit IP")
-                    installChallengeCookies(solverJar)
+                    installChallengeCookies(solverJar, pageUrl)
                     return
                 }
                 val nextChallenges = body.optJSONArray("ch")

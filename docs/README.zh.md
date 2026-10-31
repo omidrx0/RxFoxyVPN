@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,10 +30,18 @@
 
 RXFoxyVPN 是面向 **Android** 和 **Windows** 的跨平台项目，拥有简洁统一、支持你所用语言的界面。本仓库包含源代码和文档；可直接使用的构建版本发布在 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) 页面。
 
-### v1.0.2 新变化
+### v1.0.3 更新内容
 
-此版本将 Windows 应用从 **Python 重写为 Go**。`v1.0.0` 的 Windows 应用基于 Python；从 `v1.0.2` 开始，Windows 版本采用 Go 实现。Android 应用仍是独立的 Android/Kotlin 项目。
+此版本主要改进 Windows 版 Firefox Accounts 登录流程，并处理可能导致 HTTP `406 Not Acceptable` 错误的技术差异。
 
+- **HAWK 身份验证：**将 Nonce、Payload Hash 和 MAC 的输出格式从 Base64 改为小写 Hex，以匹配 Android 参考实现；同时更新了基准测试数据。
+- **HTTP 兼容性：**将 User-Agent 调整为 Firefox Desktop（版本 158），并将 `Accept` 请求头改为 `*/*`。
+- **Cookie 与 Challenge：**使用 `net/http/cookiejar` 替换手动 Cookie 映射；主客户端与 Fastly Challenge 客户端共享 Cookie Jar。Challenge 最大步骤数从 3 增加到 8，并加入 Mutex 以防止多个 Challenge 同时运行。
+- **账户验证：**新增对 `totp-2fa` 方法的识别，并将请求发送到 `/session/verify/totp`；普通验证路径 `/session/verify_code` 保持不变。同时修正了更改邮箱地址时原始邮箱字段的传递。
+- **Session 清理：**保存令牌后调用 `DestroySession()`。清理失败只会记录日志，不会将成功登录判定为失败。
+- **界面状态：**在账户层和应用层之间同步待处理的验证方式。
+
+**测试状态：**HAWK 测试、PBKDF2/HKDF 参考测试和 `gofmt` 检查均已通过。Windows 完整构建和 Firefox Accounts 实际登录测试尚未完成，因此目前还不能确认 HTTP 406 已彻底解决。本版本尚未实现专用 Unblock Code 界面，也不保证能够处理所有类型的 CAPTCHA。
 ## 功能
 
 | Android | Windows |

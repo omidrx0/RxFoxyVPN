@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,10 +30,18 @@
 
 RXFoxyVPN — кроссплатформенный проект для **Android** и **Windows** с простым и единым интерфейсом на вашем языке. В репозитории находятся исходный код и документация; готовые сборки публикуются на странице [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
 
-### Что нового в v1.0.2
+### Что нового в v1.0.3
 
-В этой версии приложение для Windows было **переписано с Python на Go**. В `v1.0.0` использовалась версия для Windows на Python, а начиная с `v1.0.2` используется реализация на Go. Приложение Android остаётся отдельным проектом на Android/Kotlin.
+Выпуск посвящён улучшению входа в Firefox Accounts в версии для Windows и устранению технических различий, которые могли приводить к ошибке HTTP `406 Not Acceptable`.
 
+- **Аутентификация HAWK:** формат Nonce, Payload Hash и MAC изменён с Base64 на строчные Hex-значения для соответствия эталонной реализации Android. Эталонные тестовые данные также обновлены.
+- **Совместимость HTTP:** User-Agent приведён к Firefox Desktop (версия 158), а заголовок `Accept` изменён на `*/*`.
+- **Cookie и Challenge:** ручное хранение cookie заменено на `net/http/cookiejar`; Cookie Jar используется совместно с клиентом Fastly. Лимит этапов Challenge увеличен с 3 до 8, а Mutex предотвращает одновременный запуск нескольких Challenge.
+- **Проверка аккаунта:** добавлено распознавание метода `totp-2fa` с перенаправлением запроса на `/session/verify/totp`; обычный путь `/session/verify_code` сохранён. Также исправлена передача исходного адреса электронной почты при его изменении.
+- **Очистка сессии:** после сохранения токенов вызывается `DestroySession()`. Ошибка очистки записывается в журнал и не превращает успешный вход в неудачный.
+- **Состояние интерфейса:** метод ожидающей проверки синхронизирован между слоями аккаунта и приложения.
+
+**Статус тестирования:** тесты HAWK, эталонные тесты PBKDF2/HKDF и проверки `gofmt` прошли успешно. Полная сборка Windows и реальный вход в Firefox Accounts ещё не проверялись, поэтому окончательное устранение ошибки 406 не подтверждено. Отдельный интерфейс Unblock Code и гарантированная обработка всех типов CAPTCHA в этот выпуск не вошли.
 ## Возможности
 
 | Android | Windows |

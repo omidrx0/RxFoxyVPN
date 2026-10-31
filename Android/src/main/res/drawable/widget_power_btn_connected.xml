@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- soft outer glow -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="30dp"
+                android:startColor="#5938D9FF"
+                android:centerColor="#2938D9FF"
+                android:endColor="#0038D9FF" />
+        </shape>
+    </item>
+
+    <!-- glass circle + ring -->
+    <item
+        android:left="6dp" android:top="6dp"
+        android:right="6dp" android:bottom="6dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="26dp"
+                android:startColor="#4038D9FF"
+                android:centerColor="#2A1F1640"
+                android:endColor="#1F1640" />
+            <stroke android:width="1.8dp" android:color="#FF38D9FF" />
+        </shape>
+    </item>
+
+    <!-- icon -->
+    <item
+        android:left="14dp" android:top="14dp"
+        android:right="14dp" android:bottom="14dp"
+        android:drawable="@drawable/ic_widget_power_glyph" />
+</layer-list>

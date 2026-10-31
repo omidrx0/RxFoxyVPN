@@ -48,20 +48,21 @@ type App struct {
 
 	opMu sync.Mutex // one connect / disconnect at a time
 
-	mu               sync.RWMutex // protects the fields below (short critical sections only)
-	connSettings     config.Connection
-	settings         config.Settings
-	connected        bool
-	started          time.Time
-	upstream         *foxy.Upstream
-	listeners        []net.Listener
-	pingIfIndex      int // 0 = unknown
-	pendingSession   string
-	pendingEmail     string
-	quotaLimit       *int
-	quotaRemaining   *int
-	connectionSaveMu sync.Mutex
-	settingsMu       sync.Mutex
+	mu                        sync.RWMutex // protects the fields below (short critical sections only)
+	connSettings              config.Connection
+	settings                  config.Settings
+	connected                 bool
+	started                   time.Time
+	upstream                  *foxy.Upstream
+	listeners                 []net.Listener
+	pingIfIndex               int // 0 = unknown
+	pendingSession            string
+	pendingEmail              string
+	pendingVerificationMethod string
+	quotaLimit                *int
+	quotaRemaining            *int
+	connectionSaveMu          sync.Mutex
+	settingsMu                sync.Mutex
 
 	listMu    sync.Mutex
 	countries map[string]*foxy.Country

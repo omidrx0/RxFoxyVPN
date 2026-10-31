@@ -12,8 +12,9 @@ type Fxa struct{ cp *ControlPlane }
 
 // LoginResponse is the interesting part of POST /account/login.
 type LoginResponse struct {
-	SessionToken string `json:"sessionToken"`
-	Verified     bool   `json:"verified"`
+	SessionToken       string `json:"sessionToken"`
+	Verified           bool   `json:"verified"`
+	VerificationMethod string `json:"verificationMethod"`
 }
 
 // TokenResponse is an OAuth token answer.
@@ -105,11 +106,14 @@ func decode(raw []byte, out any) error {
 // Login signs in with e-mail and password. When the server asks for e-mail 2FA the answer has
 // Verified == false and the code must be sent with VerifyCode.
 func (f *Fxa) Login(ctx context.Context, email, password string) (*LoginResponse, error) {
-	return f.login(ctx, email, password, true, true)
+	return f.login(ctx, email, password, true, true, "")
 }
 
-func (f *Fxa) login(ctx context.Context, email, password string, withVerification, caseRetry bool) (*LoginResponse, error) {
+func (f *Fxa) login(ctx context.Context, email, password string, withVerification, caseRetry bool, originalLoginEmail string) (*LoginResponse, error) {
 	body := map[string]any{"email": email, "authPW": DeriveAuthPW(email, password)}
+	if originalLoginEmail != "" {
+		body["originalLoginEmail"] = originalLoginEmail
+	}
 	if withVerification {
 		body["verificationMethod"] = "email-2fa"
 	}
@@ -117,11 +121,11 @@ func (f *Fxa) login(ctx context.Context, email, password string, withVerificatio
 	if err != nil {
 		if e, ok := err.(*FxaAPIError); ok {
 			if e.Errno == 107 && withVerification {
-				return f.login(ctx, email, password, false, caseRetry)
+				return f.login(ctx, email, password, false, caseRetry, originalLoginEmail)
 			}
 			if e.Errno == 120 && caseRetry {
 				if corrected, _ := e.Body["email"].(string); corrected != "" { // wrong e-mail letter case
-					return f.login(ctx, corrected, password, withVerification, false)
+					return f.login(ctx, corrected, password, withVerification, false, email)
 				}
 			}
 		}
@@ -135,8 +139,12 @@ func (f *Fxa) login(ctx context.Context, email, password string, withVerificatio
 }
 
 // VerifyCode confirms the e-mail code of a pending sign-in.
-func (f *Fxa) VerifyCode(ctx context.Context, sessionToken, code string) error {
-	_, err := f.do(ctx, "POST", "/session/verify_code", map[string]any{"code": code}, sessionToken)
+func (f *Fxa) VerifyCode(ctx context.Context, sessionToken, code, verificationMethod string) error {
+	path := "/session/verify_code"
+	if verificationMethod == "totp-2fa" {
+		path = "/session/verify/totp"
+	}
+	_, err := f.do(ctx, "POST", path, map[string]any{"code": code}, sessionToken)
 	return err
 }
 
@@ -153,6 +161,14 @@ func (f *Fxa) OAuthFromSession(ctx context.Context, sessionToken string) (*Token
 		return nil, err
 	}
 	return &out, nil
+}
+
+// DestroySession closes the temporary FxA session after OAuth credentials have
+// been issued. A caller may treat failure as non-fatal because the OAuth tokens
+// are already independent of this temporary session.
+func (f *Fxa) DestroySession(ctx context.Context, sessionToken string) error {
+	_, err := f.do(ctx, "POST", "/session/destroy", map[string]any{}, sessionToken)
+	return err
 }
 
 // Refresh gets a new access token from a refresh token.

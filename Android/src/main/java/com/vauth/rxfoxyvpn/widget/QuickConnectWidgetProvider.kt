@@ -6,6 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import android.graphics.Typeface
 import android.widget.RemoteViews
 import com.vauth.rxfoxyvpn.MainActivity
 import com.vauth.rxfoxyvpn.R
@@ -14,6 +19,15 @@ import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.TokenStore
 import com.vauth.rxfoxyvpn.data.model.ConnectionState
 import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
+
+/* App brand accents (mirrors ui/theme/Color.kt DarkStatusColors / FoxSeed), kept in sync by hand
+   since RemoteViews can't read Compose theme values. */
+private object WidgetBrand {
+    const val ELECTRIC_BLUE = 0xFF38D9FF.toInt()   // connected
+    const val NEON_PINK = 0xFFFF5FB0.toInt()       // connecting
+    const val NEON_PURPLE = 0xFFB388FF.toInt()     // disconnected
+    const val MUTED_LAVENDER = 0xFF9A8FC9.toInt()  // subtitle
+}
 
 class QuickConnectWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
@@ -47,6 +61,14 @@ class QuickConnectWidgetProvider : AppWidgetProvider() {
             val component = android.content.ComponentName(context, QuickConnectWidgetProvider::class.java)
             manager.getAppWidgetIds(component).forEach { id ->
                 val views = RemoteViews(context.packageName, R.layout.widget_quick_connect)
+
+                // two-tone brand text, same split the app itself uses: "RX" in electric blue, "FoxyVPN" in white
+                val brand = SpannableString("RXFoxyVPN").apply {
+                    setSpan(ForegroundColorSpan(WidgetBrand.ELECTRIC_BLUE), 0, 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                views.setTextViewText(R.id.widget_brand, brand)
+
                 views.setTextViewText(R.id.widget_status, when (state) {
                     ConnectionState.CONNECTED -> LanguageManager.t("status_connected", "Connected")
                     ConnectionState.CONNECTING -> LanguageManager.t("status_connecting", "Connecting…")
@@ -55,27 +77,32 @@ class QuickConnectWidgetProvider : AppWidgetProvider() {
                 views.setTextColor(
                     R.id.widget_status,
                     when (state) {
-                        ConnectionState.CONNECTED -> android.graphics.Color.rgb(52, 224, 161)
-                        ConnectionState.CONNECTING -> android.graphics.Color.rgb(56, 217, 255)
-                        ConnectionState.DISCONNECTED -> android.graphics.Color.rgb(154, 161, 214)
-                    },
-                )
-                views.setImageViewResource(
-                    R.id.widget_status_dot,
-                    when (state) {
-                        ConnectionState.CONNECTED -> R.drawable.widget_dot_connected
-                        ConnectionState.CONNECTING -> R.drawable.widget_dot_connecting
-                        ConnectionState.DISCONNECTED -> R.drawable.widget_dot_disconnected
+                        ConnectionState.CONNECTED -> WidgetBrand.ELECTRIC_BLUE
+                        ConnectionState.CONNECTING -> WidgetBrand.NEON_PINK
+                        ConnectionState.DISCONNECTED -> WidgetBrand.NEON_PURPLE
                     },
                 )
                 views.setTextViewText(
-                    R.id.widget_button,
+                    R.id.widget_subtitle,
                     when (state) {
                         ConnectionState.CONNECTED -> LanguageManager.t("tap_disconnect", "Tap to disconnect")
                         ConnectionState.CONNECTING -> LanguageManager.t("tap_cancel", "Tap to cancel")
                         ConnectionState.DISCONNECTED -> LanguageManager.t("tap_connect", "Tap to connect")
                     },
                 )
+                views.setTextColor(R.id.widget_subtitle, WidgetBrand.MUTED_LAVENDER)
+
+                // the toggle itself: the app's own glass power-button style, just re-drawn as a
+                // static RemoteViews drawable (widgets can't host the animated Compose fox orb)
+                views.setImageViewResource(
+                    R.id.widget_button,
+                    when (state) {
+                        ConnectionState.CONNECTED -> R.drawable.widget_power_btn_connected
+                        ConnectionState.CONNECTING -> R.drawable.widget_power_btn_connecting
+                        ConnectionState.DISCONNECTED -> R.drawable.widget_power_btn_disconnected
+                    },
+                )
+
                 val intent = Intent(context, QuickConnectWidgetProvider::class.java).setAction(ACTION_TOGGLE)
                 val pi = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 views.setOnClickPendingIntent(R.id.widget_button, pi)

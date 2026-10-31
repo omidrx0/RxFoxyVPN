@@ -1,6 +1,5 @@
 package com.vauth.rxfoxyvpn.data
 
-import android.util.Base64
 import com.vauth.rxfoxyvpn.data.model.RuntimeAuth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +14,7 @@ import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.Locale
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -28,7 +28,7 @@ enum class SessionStatus {
     UNREACHABLE,
 }
 
-class FxaApiError(message: String, val errno: Int?, val statusCode: Int?) : Exception(message)
+class FxaApiError(message: String, val errno: Int?, val statusCode: Int?, val accountEmail: String? = null) : Exception(message)
 
 class FxaRefreshFailure(
     message: String,
@@ -55,11 +55,23 @@ class FxaAuthRepository(
     private val challengeSolver: FastlyChallengeSolver = FastlyChallengeSolver(ControlPlaneHttp.cookieJar),
 ) {
     private var pendingSessionToken: String? = null
+    private var pendingVerificationMethod: String = "email-2fa"
 
     suspend fun startLogin(email: String, password: String): Result<Boolean> = runCatching {
-        val data = loginAttempt(email, password)
+        val normalizedEmail = normalizeEmail(email)
+        val data = try {
+            loginAttempt(normalizedEmail, password)
+        } catch (caseError: FxaApiError) {
+            val correctedEmail = caseError.accountEmail
+            if (caseError.errno == 120 && !correctedEmail.isNullOrBlank() && correctedEmail != normalizedEmail) {
+                loginAttempt(correctedEmail, password, originalEmail = normalizedEmail)
+            } else {
+                throw caseError
+            }
+        }
         val sessionToken = data.getString("sessionToken")
         pendingSessionToken = sessionToken
+        pendingVerificationMethod = data.optString("verificationMethod", "email-2fa")
         val verified = data.optBoolean("verified", false)
         if (!verified) {
             true
@@ -71,7 +83,17 @@ class FxaAuthRepository(
 
     suspend fun submitTwoFactorCode(code: String): Result<Boolean> = runCatching {
         val sessionToken = pendingSessionToken ?: error("No pending FxA session. Start sign-in again.")
-        fxaDo("POST", "/session/verify_code", sessionToken = sessionToken, jsonBody = JSONObject().put("code", code))
+        val verifyPath = if (pendingVerificationMethod == "totp-2fa") {
+            "/session/verify/totp"
+        } else {
+            "/session/verify_code"
+        }
+        fxaDo(
+            "POST",
+            verifyPath,
+            sessionToken = sessionToken,
+            jsonBody = JSONObject().put("code", normalizeCode(code)),
+        )
         completeLogin(sessionToken)
         false
     }
@@ -193,23 +215,74 @@ class FxaAuthRepository(
                 expiresAtEpochSeconds = expiryFrom(tokenData),
             ),
         )
+        // Firefox's reference client destroys the temporary FxA session after
+        // exchanging it for OAuth credentials. Failure here must not undo login.
+        runCatching {
+            fxaDo("POST", "/session/destroy", sessionToken = sessionToken, jsonBody = JSONObject())
+        }
         pendingSessionToken = null
+        pendingVerificationMethod = "email-2fa"
     }
 
-    private suspend fun loginAttempt(email: String, password: String, withVerificationMethod: Boolean = true): JSONObject {
+    private suspend fun loginAttempt(
+        email: String,
+        password: String,
+        originalEmail: String? = null,
+        unblockCode: String? = null,
+        withVerificationMethod: Boolean = true,
+    ): JSONObject {
         val body = JSONObject().apply {
             put("email", email)
             put("authPW", deriveAuthPw(email, password))
+            if (!originalEmail.isNullOrBlank()) put("originalLoginEmail", originalEmail)
+            if (!unblockCode.isNullOrBlank()) put("unblockCode", normalizeCode(unblockCode).uppercase(Locale.ROOT))
             if (withVerificationMethod) put("verificationMethod", VERIFICATION_METHOD_EMAIL_2FA)
         }
         return try {
             fxaDo("POST", "/account/login", jsonBody = body)
         } catch (e: FxaApiError) {
             if (e.errno == FXA_ERRNO_INVALID_PARAMETER && withVerificationMethod) {
-                loginAttempt(email, password, withVerificationMethod = false)
+                loginAttempt(email, password, originalEmail, unblockCode, withVerificationMethod = false)
             } else {
                 throw e
             }
+        }
+    }
+
+    /** Request the email containing FxA's unblock code after errno 125. */
+    suspend fun sendUnblockCode(email: String): Result<Unit> = runCatching {
+        fxaDo(
+            "POST",
+            "/account/login/send_unblock_code",
+            jsonBody = JSONObject().put("email", normalizeEmail(email)),
+        )
+    }
+
+    /** Retry a blocked sign-in with the code sent by Firefox Accounts. */
+    suspend fun startLoginWithUnblockCode(email: String, password: String, code: String): Result<Boolean> = runCatching {
+        val normalizedEmail = normalizeEmail(email)
+        val normalizedCode = normalizeCode(code).uppercase(Locale.ROOT)
+        val data = try {
+            loginAttempt(normalizedEmail, password, unblockCode = normalizedCode)
+        } catch (caseError: FxaApiError) {
+            val correctedEmail = caseError.accountEmail
+            if (caseError.errno == 120 && !correctedEmail.isNullOrBlank() && correctedEmail != normalizedEmail) {
+                loginAttempt(
+                    correctedEmail,
+                    password,
+                    originalEmail = normalizedEmail,
+                    unblockCode = normalizedCode,
+                )
+            } else {
+                throw caseError
+            }
+        }
+        val sessionToken = data.getString("sessionToken")
+        pendingSessionToken = sessionToken
+        pendingVerificationMethod = data.optString("verificationMethod", "email-2fa")
+        if (!data.optBoolean("verified", false)) true else {
+            completeLogin(sessionToken)
+            false
         }
     }
 
@@ -250,12 +323,12 @@ class FxaAuthRepository(
         }
 
         var response: Response = ControlPlaneHttp.client.newCall(buildRequest()).execute()
-        var attempts = 1
-        while (response.code == 406 && attempts < FXA_MAX_CHALLENGE_ATTEMPTS) {
+        var challengeAttempts = 0
+        while (response.code == 406 && challengeAttempts < FXA_MAX_CHALLENGE_ATTEMPTS) {
             response.close()
             challengeSolver.solveAndInstall()
+            challengeAttempts++
             response = ControlPlaneHttp.client.newCall(buildRequest()).execute()
-            attempts++
         }
 
         response.use { resp ->
@@ -268,7 +341,8 @@ class FxaAuthRepository(
                 }
                 val errno = if (errorBody.has("errno")) errorBody.optInt("errno") else null
                 val message = errorBody.optString("message", text.ifEmpty { "HTTP ${resp.code}" })
-                throw FxaApiError(message, errno, resp.code)
+                val accountEmail = errorBody.optString("email", "").ifBlank { null }
+                throw FxaApiError(message, errno, resp.code, accountEmail)
             }
             if (text.isEmpty()) return@withContext JSONObject()
             return@withContext JSONObject(text)
@@ -294,7 +368,7 @@ class FxaAuthRepository(
     private fun hawkHeader(method: String, url: HttpUrl, tokenId: String, hmacKey: ByteArray, body: ByteArray): String {
         val ts = (System.currentTimeMillis() / 1000).toString()
         val nonceBytes = ByteArray(6).also { SecureRandom().nextBytes(it) }
-        val nonce = Base64.encodeToString(nonceBytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        val nonce = nonceBytes.toHex()
         val path = url.encodedPath + if (url.encodedQuery != null) "?${url.encodedQuery}" else ""
 
         var payloadHash = ""
@@ -303,17 +377,38 @@ class FxaAuthRepository(
             digest.update("hawk.1.payload\napplication/json\n".toByteArray(Charsets.UTF_8))
             digest.update(body)
             digest.update("\n".toByteArray(Charsets.UTF_8))
-            payloadHash = Base64.encodeToString(digest.digest(), Base64.NO_WRAP)
+            payloadHash = digest.digest().toHex()
         }
 
         val normalized = "hawk.1.header\n$ts\n$nonce\n${method.uppercase()}\n$path\n${url.host}\n${url.port}\n$payloadHash\n\n"
 
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(hmacKey, "HmacSHA256")) }
-        val macB64 = Base64.encodeToString(mac.doFinal(normalized.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+        val macHex = mac.doFinal(normalized.toByteArray(Charsets.UTF_8)).toHex()
 
-        var header = "Hawk id=\"$tokenId\", ts=\"$ts\", nonce=\"$nonce\", mac=\"$macB64\""
+        var header = "Hawk id=\"$tokenId\", ts=\"$ts\", nonce=\"$nonce\", mac=\"$macHex\""
         if (payloadHash.isNotEmpty()) header += ", hash=\"$payloadHash\""
         return header
+    }
+}
+
+private fun normalizeEmail(value: String): String =
+    value.filterNot {
+        it.isWhitespace() ||
+            Character.getType(it) == Character.FORMAT.toInt() ||
+            Character.getType(it) == Character.SPACE_SEPARATOR.toInt()
+    }
+
+private fun normalizeCode(value: String): String = buildString {
+    for (ch in value) {
+        when (ch) {
+            in '۰'..'۹' -> append(('0'.code + (ch.code - '۰'.code)).toChar())
+            in '٠'..'٩' -> append(('0'.code + (ch.code - '٠'.code)).toChar())
+            else -> if (
+                !ch.isWhitespace() &&
+                Character.getType(ch) != Character.FORMAT.toInt() &&
+                Character.getType(ch) != Character.SPACE_SEPARATOR.toInt()
+            ) append(ch)
+        }
     }
 }
 

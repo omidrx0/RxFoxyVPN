@@ -41,8 +41,8 @@ func (r *Response) OK() bool { return r.Status < 400 }
 type ControlPlane struct {
 	client *http.Client
 
-	mu        sync.Mutex
-	fxCookies map[string]string
+	jar         http.CookieJar
+	challengeMu sync.Mutex
 }
 
 // NewControlPlane builds the client. apiProxy (optional) is used ONLY for these control
@@ -63,28 +63,12 @@ func NewControlPlane(apiProxy string) (*ControlPlane, error) {
 		}
 		tr.Proxy = http.ProxyURL(u)
 	}
-	return &ControlPlane{
-		client:    &http.Client{Transport: tr, Timeout: 30 * time.Second},
-		fxCookies: map[string]string{},
-	}, nil
-}
-
-func (c *ControlPlane) cookieHeader(rawURL string) string {
-	u, err := url.Parse(rawURL)
+	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return ""
+		return nil, fmt.Errorf("create HTTP cookie jar: %w", err)
 	}
-	host := u.Hostname()
-	if host != "firefox.com" && !strings.HasSuffix(host, ".firefox.com") {
-		return ""
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	parts := make([]string, 0, len(c.fxCookies))
-	for k, v := range c.fxCookies {
-		parts = append(parts, k+"="+v)
-	}
-	return strings.Join(parts, "; ")
+	client := &http.Client{Transport: tr, Timeout: 30 * time.Second, Jar: jar}
+	return &ControlPlane{client: client, jar: jar}, nil
 }
 
 func readResponse(resp *http.Response) (*Response, error) {
@@ -107,12 +91,9 @@ func (c *ControlPlane) Request(ctx context.Context, method, rawURL string, heade
 		return nil, err
 	}
 	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", "*/*")
 	for k, v := range headers {
 		req.Header.Set(k, v)
-	}
-	if cookie := c.cookieHeader(rawURL); cookie != "" {
-		req.Header.Set("Cookie", cookie)
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -128,9 +109,12 @@ var (
 	challengeInitRe   = regexp.MustCompile(`init\((\[[^\]]*\]),\s*"([^"]+)",\s*"([^"]+)"`)
 )
 
-// SolveChallenge passes the Fastly anti-bot challenge (proof of work + client metrics) and
-// remembers the cookies it earns for the firefox.com hosts.
+// SolveChallenge handles the Fastly challenge flow. Challenge and API requests share
+// the same standards-compliant CookieJar so cookie scope and expiry are preserved.
 func (c *ControlPlane) SolveChallenge(ctx context.Context) error {
+	c.challengeMu.Lock()
+	defer c.challengeMu.Unlock()
+
 	var last error
 	for _, base := range []string{"https://api.accounts.firefox.com", "https://accounts.firefox.com"} {
 		err := c.solveOnHost(ctx, base)
@@ -174,11 +158,10 @@ func fastlyErr(format string, args ...any) error {
 }
 
 func (c *ControlPlane) solveOnHost(ctx context.Context, base string) error {
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return err
-	}
-	hc := &http.Client{Transport: c.client.Transport, Jar: jar, Timeout: 60 * time.Second}
+	// Reuse the exact CookieJar used by ordinary FxA/Guardian requests. This
+	// keeps challenge cookies, including their original scope and expiry, in
+	// the same session that performs the retried API request.
+	hc := &http.Client{Transport: c.client.Transport, Jar: c.jar, Timeout: 60 * time.Second}
 	pageURL := base + "/"
 
 	do := func(method, rawURL string, headers map[string]string, body []byte) (*Response, error) {
@@ -298,7 +281,7 @@ func (c *ControlPlane) solveOnHost(ctx context.Context, base string) error {
 		return nil, fastlyErr("unsupported Fastly challenge type \x27%s\x27 (captcha cannot be solved automatically)", ty)
 	}
 
-	for round := 0; round < 3; round++ {
+	for round := 0; round < 8; round++ {
 		answers := make([]map[string]any, 0, len(challenges))
 		for _, ch := range challenges {
 			a, err := answer(ch)
@@ -336,18 +319,9 @@ func (c *ControlPlane) solveOnHost(ctx context.Context, base string) error {
 				return fastlyErr("challenge cookie not accepted on this exit IP")
 			}
 			baseURL, _ := url.Parse(base)
-			cookies := map[string]string{}
-			for _, ck := range jar.Cookies(baseURL) {
-				cookies[ck.Name] = ck.Value
+			if len(c.jar.Cookies(baseURL)) == 0 {
+				return fastlyErr("challenge completed but no applicable cookies were issued")
 			}
-			if len(cookies) == 0 {
-				return fastlyErr("challenge completed but no cookies were issued")
-			}
-			c.mu.Lock()
-			for k, v := range cookies {
-				c.fxCookies[k] = v
-			}
-			c.mu.Unlock()
 			slog.Info("Fastly challenge solved")
 			return nil
 		}
@@ -356,5 +330,5 @@ func (c *ControlPlane) solveOnHost(ctx context.Context, base string) error {
 		}
 		challenges, token = reply.Ch, reply.Tok
 	}
-	return fastlyErr("Fastly challenge did not complete within 3 rounds")
+	return fastlyErr("Fastly challenge did not complete within 8 rounds")
 }

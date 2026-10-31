@@ -10,7 +10,7 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -30,10 +30,18 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 
 RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built around a simple, consistent interface that speaks your language. This repository contains the source code and documentation; ready-to-use builds are published on the [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest) page.
 
-### What's new in v1.0.2
+### What's new in v1.0.3
 
-The Windows application has been rewritten from Python to **Go**. Version `v1.0.0` used the Python-based Windows application; starting with `v1.0.2`, the Windows version uses the Go-based implementation. The Android application remains a separate Android/Kotlin project.
+This release focuses on improving the Windows sign-in flow for Firefox Accounts and addressing compatibility differences that could contribute to HTTP `406 Not Acceptable` responses.
 
+- **HAWK authentication:** changed Nonce, Payload Hash and MAC output from Base64 to lowercase Hex to match the Android reference implementation; updated the golden test vectors.
+- **HTTP compatibility:** aligned the User-Agent with Firefox Desktop (Firefox 158) and changed the `Accept` header to `*/*`.
+- **Cookie and challenge handling:** replaced the manual cookie map with Go's `net/http/cookiejar`, shared the cookie jar with the Fastly challenge client, increased the challenge limit from 3 to 8 steps, and added mutex protection against concurrent challenges.
+- **Account verification:** added detection for the `totp-2fa` method and routing to `/session/verify/totp`; the regular `/session/verify_code` flow remains available. Also corrected the original email field sent during email correction.
+- **Session cleanup:** added `DestroySession()` after tokens are saved. A cleanup failure is logged and does not turn a successful sign-in into a failed one.
+- **UI state:** synchronized the pending verification method between the account and application layers.
+
+**Validation:** HAWK tests, PBKDF2/HKDF reference tests and `gofmt` checks passed. A full Windows build and a real Firefox Accounts sign-in test are still pending, so the HTTP 406 issue is not yet confirmed as resolved. Dedicated Unblock Code UI and guaranteed CAPTCHA handling are not included in this release.
 ## Features
 
 | Android | Windows |

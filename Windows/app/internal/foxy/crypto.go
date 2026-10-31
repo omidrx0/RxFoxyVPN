@@ -86,7 +86,7 @@ func HawkHeader(method, rawURL, tokenID string, key, body []byte) (string, error
 		return "", err
 	}
 	return HawkHeaderAt(method, rawURL, tokenID, key, body, time.Now().Unix(),
-		base64.RawURLEncoding.EncodeToString(nonce))
+		hex.EncodeToString(nonce))
 }
 
 // HawkHeaderAt is HawkHeader with an explicit timestamp and nonce (used by the tests).
@@ -113,11 +113,11 @@ func HawkHeaderAt(method, rawURL, tokenID string, key, body []byte, ts int64, no
 		h.Write([]byte("hawk.1.payload\napplication/json\n"))
 		h.Write(body)
 		h.Write([]byte("\n"))
-		payloadHash = base64.StdEncoding.EncodeToString(h.Sum(nil))
+		payloadHash = hex.EncodeToString(h.Sum(nil))
 	}
 	normalized := fmt.Sprintf("hawk.1.header\n%d\n%s\n%s\n%s\n%s\n%s\n%s\n\n",
 		ts, nonce, strings.ToUpper(method), path, strings.ToLower(u.Hostname()), port, payloadHash)
-	mac := base64.StdEncoding.EncodeToString(hmacSHA256(key, []byte(normalized)))
+	mac := hex.EncodeToString(hmacSHA256(key, []byte(normalized)))
 	header := fmt.Sprintf(`Hawk id="%s", ts="%d", nonce="%s", mac="%s"`, tokenID, ts, nonce, mac)
 	if payloadHash != "" {
 		header += fmt.Sprintf(`, hash="%s"`, payloadHash)

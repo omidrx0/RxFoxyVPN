@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -32,10 +32,18 @@
 
 RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **ویندوز** است که رابط کاربری ساده و یکپارچه‌ای به زبان شما ارائه می‌دهد. این مخزن شامل سورس‌کد و مستندات است؛ نسخه‌های آماده در صفحهٔ [Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/latest) منتشر می‌شوند.
 
-### تغییرات نسخهٔ 1.0.2
+### تغییرات نسخهٔ 1.0.3
 
-برنامهٔ ویندوز در این نسخه از **Python به Go بازنویسی شده است**. نسخهٔ `v1.0.0` از پیاده‌سازی پایتونی استفاده می‌کرد، اما از `v1.0.2` به بعد، نسخهٔ ویندوز بر پایهٔ Go است. برنامهٔ اندروید همچنان پروژه‌ای جداگانه بر پایهٔ Android/Kotlin است.
+تمرکز این نسخه بر بهبود فرایند ورود نسخهٔ ویندوز به Firefox Accounts و برطرف‌کردن اختلاف‌های فنی‌ای است که ممکن بود در بروز خطای HTTP `406 Not Acceptable` نقش داشته باشند.
 
+- **احراز هویت HAWK:** خروجی Nonce، Payload Hash و MAC از Base64 به Hex کوچک تغییر کرد تا با پیاده‌سازی مرجع اندروید هماهنگ باشد. داده‌های تست مرجع نیز به‌روزرسانی شدند.
+- **سازگاری HTTP:** مقدار User-Agent با Firefox Desktop (نسخهٔ 158) هماهنگ شد و هدر `Accept` به `*/*` تغییر کرد.
+- **مدیریت کوکی و Challenge:** سیستم دستی کوکی با `net/http/cookiejar` جایگزین شد؛ Cookie Jar بین کلاینت اصلی و Fastly مشترک شد؛ تعداد مراحل Challenge از ۳ به ۸ افزایش یافت و برای جلوگیری از اجرای هم‌زمان Challengeها قفل Mutex اضافه شد.
+- **تأیید حساب:** روش `totp-2fa` شناسایی می‌شود و درخواست به مسیر `/session/verify/totp` می‌رود؛ مسیر عادی `/session/verify_code` نیز حفظ شده است. ارسال ایمیل اولیه در فرایند اصلاح آدرس ایمیل هم اصلاح شد.
+- **پاک‌سازی Session:** پس از ذخیرهٔ توکن‌ها، `DestroySession()` اجرا می‌شود. خطای پاک‌سازی فقط ثبت می‌شود و باعث ناموفق اعلام‌شدن ورود موفق نخواهد شد.
+- **هماهنگی رابط برنامه:** روش تأیید موقت بین لایه‌های مدیریت حساب و برنامه هماهنگ شد.
+
+**وضعیت تست:** تست‌های HAWK، بردارهای مرجع PBKDF2/HKDF و بررسی `gofmt` موفق بودند. Build کامل ویندوز و تست ورود واقعی به Firefox Accounts هنوز انجام نشده‌اند؛ بنابراین رفع قطعی خطای 406 تأیید نشده است. رابط اختصاصی Unblock Code و پشتیبانی تضمینی از انواع CAPTCHA نیز در این نسخه پیاده‌سازی نشده‌اند.
 ## ویژگی‌ها
 
 | اندروید | ویندوز |

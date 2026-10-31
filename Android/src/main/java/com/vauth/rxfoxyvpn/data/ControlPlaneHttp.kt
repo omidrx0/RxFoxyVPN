@@ -8,69 +8,64 @@ import okhttp3.Request
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.net.SocketFactory
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 private const val TAG = "ControlPlaneHttp"
 
-const val MOZILLA_VPN_USER_AGENT = "MozillaVPN/2.35.0 (sys:linux; iap:true)"
+private const val FIREFOX_USER_AGENT =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0"
+
+const val MOZILLA_VPN_USER_AGENT = FIREFOX_USER_AGENT
 
 fun Request.Builder.applyMozillaVpnHeaders(): Request.Builder {
-    header("User-Agent", MOZILLA_VPN_USER_AGENT)
-    header("Accept", "application/json")
+    header("User-Agent", FIREFOX_USER_AGENT)
+    header("Accept", "*/*")
     return this
 }
 
+/**
+ * CookieJar that retains the original OkHttp Cookie object, including domain,
+ * host-only, path, secure, httpOnly, expiry and persistence attributes.
+ */
 class SimpleCookieJar : CookieJar {
-    private val byDomain = ConcurrentHashMap<String, MutableList<Cookie>>()
+    private data class CookieKey(val name: String, val domain: String, val path: String)
+    private val cookies = ConcurrentHashMap<CookieKey, Cookie>()
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        val now = System.currentTimeMillis()
         for (cookie in cookies) {
-            val bucket = byDomain.getOrPut(cookie.domain) { mutableListOf() }
-            synchronized(bucket) {
-                bucket.removeAll { it.name == cookie.name }
-                bucket.add(cookie)
-            }
+            val key = CookieKey(cookie.name, cookie.domain, cookie.path)
+            if (cookie.expiresAt <= now) this.cookies.remove(key)
+            else this.cookies[key] = cookie
         }
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
         val now = System.currentTimeMillis()
-        val result = mutableListOf<Cookie>()
-        for ((domain, cookies) in byDomain) {
-            if (url.host == domain || url.host.endsWith(".$domain")) {
-                synchronized(cookies) {
-                    result.addAll(cookies.filter { it.expiresAt > now })
-                }
+        val result = ArrayList<Cookie>()
+        for ((key, cookie) in cookies) {
+            if (cookie.expiresAt <= now) {
+                cookies.remove(key, cookie)
+            } else if (cookie.matches(url)) {
+                result.add(cookie)
             }
         }
         return result
     }
 
-    fun set(name: String, value: String, domain: String) {
-        val bucket = byDomain.getOrPut(domain) { mutableListOf() }
-        synchronized(bucket) {
-            bucket.removeAll { it.name == name }
-            bucket.add(
-                Cookie.Builder()
-                    .name(name)
-                    .value(value)
-                    .domain(domain)
-                    .path("/")
-                    .expiresAt(Long.MAX_VALUE)
-                    .build(),
-            )
+    /** Install original Cookie objects without rewriting their attributes. */
+    fun addAll(values: List<Cookie>) {
+        val now = System.currentTimeMillis()
+        for (cookie in values) {
+            val key = CookieKey(cookie.name, cookie.domain, cookie.path)
+            if (cookie.expiresAt <= now) cookies.remove(key)
+            else cookies[key] = cookie
         }
     }
 
-    fun snapshotAll(): List<Cookie> = byDomain.values.flatten()
+    fun snapshotFor(url: HttpUrl): List<Cookie> = loadForRequest(url)
 }
 
 private class ProtectingSocketFactory : SocketFactory() {
@@ -119,24 +114,13 @@ object ControlPlaneHttp {
     @Volatile
     var socketProtector: ((Socket) -> Boolean)? = null
 
-    val trustAllCerts = arrayOf<TrustManager>(
-        object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-    )
-
-    val sslContext = SSLContext.getInstance("TLS").apply {
-        init(null, trustAllCerts, SecureRandom())
-    }
-
+    // Use the platform trust store and OkHttp's default hostname verification.
+    // The custom socket factory only protects VPN control-plane sockets from
+    // being routed back through the VPN tunnel; it does not alter TLS trust.
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .socketFactory(ProtectingSocketFactory())
-            .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
-            .hostnameVerifier { _, _ -> true }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)

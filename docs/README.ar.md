@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
@@ -32,10 +32,18 @@
 
 RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Windows**، بواجهة بسيطة وموحدة تتحدث لغتك. يضم هذا المستودع الشيفرة المصدرية والوثائق، وتُنشر النسخ الجاهزة للاستخدام على صفحة [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
 
-### الجديد في الإصدار v1.0.2
+### الجديد في الإصدار v1.0.3
 
-أُعيدت كتابة تطبيق Windows في هذا الإصدار من **Python إلى Go**. كان تطبيق Windows في `v1.0.0` مبنيًا باستخدام Python، أما بدءًا من `v1.0.2` فيعتمد على Go. ويظل تطبيق Android مشروعًا منفصلًا مبنيًا على Android/Kotlin.
+يركّز هذا الإصدار على تحسين تسجيل الدخول إلى Firefox Accounts في تطبيق Windows ومعالجة الاختلافات التقنية التي قد تساهم في ظهور خطأ HTTP `406 Not Acceptable`.
 
+- **مصادقة HAWK:** تم تغيير تنسيق Nonce وPayload Hash وMAC من Base64 إلى Hex بأحرف صغيرة لمطابقة تنفيذ Android المرجعي، كما تم تحديث بيانات الاختبار المرجعية.
+- **توافق HTTP:** تمت مواءمة User-Agent مع Firefox Desktop (الإصدار 158)، وتغيير ترويسة `Accept` إلى `*/*`.
+- **ملفات تعريف الارتباط والتحدي:** استُبدل نظام ملفات تعريف الارتباط اليدوي بـ `net/http/cookiejar`، وأصبحت Cookie Jar مشتركة مع عميل Fastly. كما زاد الحد الأقصى لمراحل Challenge من 3 إلى 8، وأضيف Mutex لمنع تشغيل تحديات متزامنة.
+- **التحقق من الحساب:** تمت إضافة اكتشاف طريقة `totp-2fa` وتوجيه الطلب إلى `/session/verify/totp` مع الإبقاء على المسار العادي `/session/verify_code`. كما تم تصحيح إرسال البريد الإلكتروني الأصلي عند تصحيح العنوان.
+- **تنظيف الجلسة:** تُستدعى `DestroySession()` بعد حفظ الرموز. ويتم تسجيل خطأ التنظيف دون اعتبار تسجيل الدخول الناجح فاشلاً.
+- **حالة الواجهة:** تمت مزامنة طريقة التحقق المعلّقة بين طبقتي الحساب والتطبيق.
+
+**حالة الاختبار:** نجحت اختبارات HAWK واختبارات PBKDF2/HKDF المرجعية وفحوصات `gofmt`. لم يتم بعد إجراء بناء Windows كامل أو اختبار تسجيل دخول فعلي إلى Firefox Accounts؛ لذلك لم يتم تأكيد حل خطأ 406 نهائياً. كما لم تُضف واجهة Unblock Code مخصصة أو معالجة مضمونة لجميع أنواع CAPTCHA.
 ## الميزات
 
 | Android | Windows |
