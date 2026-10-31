@@ -1,19 +1,18 @@
+<div align="center" dir="rtl">
+
+<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="شعار RXFoxyVPN" width="140">
+
 # RXFoxyVPN
 
-**حريتكم أولويتنا.**
+**حريتك، أولويتنا.**
 
-عميل VPN سريع ومتعدد اللغات لنظامي Android وWindows.
+عميل VPN سريع وأنيق ومتعدد اللغات لنظامي **Android** و**Windows**.
 
-<<<<<<< HEAD
-[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-=======
 <br>
 
 [![Version](https://img.shields.io/badge/version-v1.0.3-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows Portable](https://img.shields.io/badge/Windows-Portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
-[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/latest)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
@@ -75,18 +74,72 @@ RXFoxyVPN مشروع متعدد المنصات لنظامي **Android** و**Wind
     </tr>
   </table>
 </div>
->>>>>>> f1e9d32795a84dc67a8e2ca87f18df9e1df5723a
 
 ## التنزيل
 
-احصل على أحدث إصدار من [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest).
+احصل على أحدث إصدار من **[GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/latest)**.
 
-| المنصة | الملف | التفاصيل |
-|---|---|---|
-| Android | `.apk` | يدعم Android 8.0 والإصدارات الأحدث. |
-| Windows | Portable `.exe` أو `.zip` | شغّل الملف مباشرة أو استخرج ZIP أولاً. |
-| Windows | Setup `.exe` | شغّل برنامج التثبيت واتبع التعليمات. |
+| المنصة | الملف | ملاحظات |
+| --- | --- | --- |
+| Android | `.apk` | اسمح بالتثبيت من المتصفح أو مدير الملفات إذا طلب Android ذلك. |
+| Windows | ملف `.exe` محمول أو `.zip` | لا يحتاج إلى تثبيت. فك ضغط ملف ZIP (إن وُجد) ثم شغّل التطبيق. |
 
-## الجديد في 1.0.3
+> [!NOTE]
+> إذا لم يظهر لك المستودع أو الإصدارات فقد يكون الوصول مقيّدًا؛ اطلب الصلاحية من مسؤول المشروع.
 
-تم تحديث تسجيل الدخول إلى Firefox Accounts وآليات المصادقة وتوافق HTTP وإدارة ملفات تعريف الارتباط والتحقق لمعالجة مشكلات `406 Not Acceptable`. اجتازت اختبارات HAWK وPBKDF2/HKDF وفحوصات `gofmt`؛ ولا يزال البناء الكامل واختبار حساب حقيقي قيد الانتظار.
+## البناء من المصدر
+
+<details>
+<summary>عرض خطوات البناء</summary>
+
+<br>
+
+انسخ المستودع:
+
+<div dir="ltr">
+
+```bash
+git clone https://github.com/omidrx0/RxFoxyVPN.git
+cd RxFoxyVPN
+```
+
+</div>
+
+- **Android**: افتح المجلد `Android/` في Android Studio وانتظر اكتمال مزامنة Gradle (راجع ملفات Gradle لمعرفة إصدارات JDK وAndroid SDK المطلوبة)، ثم شغّل التطبيق أو استخدم *Build → Build APK(s)*.
+- **Windows**: كُتب تطبيق Windows الجديد باستخدام Go. راجع الشيفرة المصدرية وتعليمات البناء الخاصة بـ Windows في المستودع، واتبع متطلبات Go وبناء واجهة الويب المحددة في إعدادات المشروع.
+
+قد تختلف خطوات البناء حسب بيئتك، وتبقى ملفات الإعداد في المستودع هي المرجع.
+
+</details>
+
+## هيكل المشروع
+
+<div dir="ltr">
+
+```text
+Android/    تطبيق Android (Kotlin / Gradle)
+Windows/    تطبيق Windows (Go / واجهة ويب)
+docs/       ملفات README المترجمة
+```
+
+</div>
+
+## المساهمة
+
+نرحب بالاقتراحات وتقارير الأخطاء وطلبات الدمج (Pull Requests). للتغييرات الكبيرة، يُرجى فتح Issue أولًا لمناقشة الفكرة.
+
+## الترخيص
+
+تُحدَّد شروط الاستخدام وإعادة التوزيع في ملف `LICENSE` بالمستودع. وإن لم يوجد، فجميع الحقوق محفوظة للمؤلف.
+
+</div>
+
+---
+
+<div align="center" dir="rtl">
+
+<sub>**RXFoxyVPN** · Android وWindows · [مستودع GitHub](https://github.com/omidrx0/RxFoxyVPN)</sub>
+
+<sub><i>حريتك، أولويتنا.</i></sub>
+
+</div>
