@@ -32,16 +32,10 @@ RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝�
 
 ### v1.0.3 변경 사항
 
-이번 버전은 Windows 버전의 Firefox Accounts 로그인 흐름을 개선하고 HTTP `406 Not Acceptable` 오류의 원인이 될 수 있는 기술적 차이를 수정하는 데 중점을 둡니다.
+이번 버전에서는 Windows의 Firefox Accounts 로그인 흐름을 개선했습니다. 인증, HTTP 호환성, Cookie 및 Challenge 처리, 계정 확인 기능을 업데이트했으며, 이를 통해 `406 Not Acceptable` 오류를 일으킬 수 있는 문제를 해결하고자 합니다.
 
-- **HAWK 인증:** Android 기준 구현과 일치하도록 Nonce, Payload Hash 및 MAC 출력 형식을 Base64에서 소문자 Hex로 변경하고 기준 테스트 데이터를 업데이트했습니다.
-- **HTTP 호환성:** User-Agent를 Firefox Desktop(버전 158)에 맞추고 `Accept` 헤더를 `*/*`로 변경했습니다.
-- **Cookie 및 Challenge 처리:** 수동 Cookie 맵을 `net/http/cookiejar`로 교체하고 Fastly Challenge 클라이언트와 Cookie Jar를 공유합니다. Challenge 단계 제한을 3회에서 8회로 늘렸으며, 동시 Challenge 실행을 방지하기 위해 Mutex를 추가했습니다.
-- **계정 확인:** `totp-2fa` 방식을 감지해 `/session/verify/totp` 경로로 요청을 보내도록 했습니다. 일반 경로인 `/session/verify_code`는 그대로 유지됩니다. 이메일 주소 수정 요청에 원래 이메일을 전달하는 부분도 수정했습니다.
-- **세션 정리:** 토큰 저장 후 `DestroySession()`을 호출합니다. 정리 작업이 실패해도 성공한 로그인을 실패로 처리하지 않고 오류만 기록합니다.
-- **UI 상태:** 계정 및 애플리케이션 계층 사이에서 대기 중인 인증 방식을 동기화했습니다.
+**테스트 상태:** HAWK, PBKDF2/HKDF 기준 테스트와 `gofmt` 검사를 통과했습니다. Windows 전체 빌드와 실제 계정 로그인 테스트는 아직 완료되지 않아 406 오류의 완전한 해결 여부는 확인되지 않았습니다.
 
-**테스트 상태:** HAWK 테스트, PBKDF2/HKDF 기준 테스트 및 `gofmt` 검사를 통과했습니다. Windows 전체 빌드와 Firefox Accounts 실제 로그인 테스트는 아직 진행되지 않았으므로 HTTP 406이 완전히 해결되었다고 확인된 것은 아닙니다. 전용 Unblock Code UI와 모든 CAPTCHA 유형에 대한 확실한 처리는 이번 버전에 포함되지 않았습니다.
 ## 주요 기능
 
 | Android | Windows |

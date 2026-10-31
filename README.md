@@ -32,16 +32,10 @@ RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built aro
 
 ### What's new in v1.0.3
 
-This release focuses on improving the Windows sign-in flow for Firefox Accounts and addressing compatibility differences that could contribute to HTTP `406 Not Acceptable` responses.
+This release improves the Windows Firefox Accounts sign-in flow, with updates to authentication, HTTP compatibility, cookie and challenge handling, and account verification. These changes aim to address issues that may cause HTTP `406 Not Acceptable` responses.
 
-- **HAWK authentication:** changed Nonce, Payload Hash and MAC output from Base64 to lowercase Hex to match the Android reference implementation; updated the golden test vectors.
-- **HTTP compatibility:** aligned the User-Agent with Firefox Desktop (Firefox 158) and changed the `Accept` header to `*/*`.
-- **Cookie and challenge handling:** replaced the manual cookie map with Go's `net/http/cookiejar`, shared the cookie jar with the Fastly challenge client, increased the challenge limit from 3 to 8 steps, and added mutex protection against concurrent challenges.
-- **Account verification:** added detection for the `totp-2fa` method and routing to `/session/verify/totp`; the regular `/session/verify_code` flow remains available. Also corrected the original email field sent during email correction.
-- **Session cleanup:** added `DestroySession()` after tokens are saved. A cleanup failure is logged and does not turn a successful sign-in into a failed one.
-- **UI state:** synchronized the pending verification method between the account and application layers.
+**Testing:** HAWK, PBKDF2/HKDF reference tests and `gofmt` checks passed. A full Windows build and real-account sign-in test are still pending, so the 406 issue is not yet confirmed as resolved.
 
-**Validation:** HAWK tests, PBKDF2/HKDF reference tests and `gofmt` checks passed. A full Windows build and a real Firefox Accounts sign-in test are still pending, so the HTTP 406 issue is not yet confirmed as resolved. Dedicated Unblock Code UI and guaranteed CAPTCHA handling are not included in this release.
 ## Features
 
 | Android | Windows |
