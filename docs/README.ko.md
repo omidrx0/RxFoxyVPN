@@ -94,31 +94,31 @@ RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝�
         <sub>Android 8.0 이상</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-universal-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
         <b>잘 모르겠다면 이것을 선택하세요.</b> ⭐<br><sub>모든 기기와 아키텍처에서 작동합니다.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-arm64-v8a-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
         최신 휴대폰과 태블릿.<br><sub>64비트 ARM 프로세서.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-armeabi-v7a-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
         오래된 Android 기기.<br><sub>32비트 ARM 프로세서.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-x86_64-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
         Intel/AMD 기기 및 에뮬레이터.<br><sub>64비트.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-x86-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
         Intel/AMD 기기 및 에뮬레이터.<br><sub>32비트.</sub>
       </td>
     </tr>
@@ -128,13 +128,13 @@ RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝�
         <sub>Windows 10 이상</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
         <b>64비트 PC용 표준 설치 프로그램.</b> ⭐<br><sub>바로가기를 만들고 쉽게 제거할 수 있습니다.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
         설치가 필요 없습니다.<br><sub>ZIP을 풀고 실행하세요.</sub>
       </td>
     </tr>

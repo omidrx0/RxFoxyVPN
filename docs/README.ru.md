@@ -94,31 +94,31 @@ RXFoxyVPN — кроссплатформенный проект для **Android
         <sub>Android 8.0 и выше</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-universal-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
         <b>Лучший выбор, если не уверены.</b> ⭐<br><sub>Работает на всех устройствах и архитектурах.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-arm64-v8a-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
         Современные телефоны и планшеты.<br><sub>64-битные процессоры ARM.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-armeabi-v7a-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
         Старые устройства Android.<br><sub>32-битные процессоры ARM.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-x86_64-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
         Устройства Intel/AMD и эмуляторы.<br><sub>64-бит.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/app-x86-releaseV1.0.4.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
         Устройства Intel/AMD и эмуляторы.<br><sub>32-бит.</sub>
       </td>
     </tr>
@@ -128,13 +128,13 @@ RXFoxyVPN — кроссплатформенный проект для **Android
         <sub>Windows 10 и выше</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
         <b>Стандартный установщик для 64-битных ПК.</b> ⭐<br><sub>Создаёт ярлыки и легко удаляется.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/v1.0.4/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
         Установка не требуется.<br><sub>Распакуйте ZIP и запустите.</sub>
       </td>
     </tr>
