@@ -22,6 +22,9 @@ const val MOZILLA_VPN_USER_AGENT = FIREFOX_USER_AGENT
 fun Request.Builder.applyMozillaVpnHeaders(): Request.Builder {
     header("User-Agent", FIREFOX_USER_AGENT)
     header("Accept", "*/*")
+    // Without an explicit value OkHttp adds "Accept-Encoding: gzip", which the
+    // reference client found associated with HTTP 406 from the FxA/OAuth edge.
+    header("Accept-Encoding", "identity")
     return this
 }
 

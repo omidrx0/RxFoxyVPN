@@ -15,8 +15,10 @@ Set-Location $root
 
 if (-not (Test-Path "bin\wintun.dll")) {
     Write-Host "TUN runtime missing - downloading it first ..."
+    # prepare_runtime.ps1 runs no native command, so $LASTEXITCODE stays $null here and
+    # ($null -ne 0) is True in PowerShell. $ErrorActionPreference = "Stop" already aborts on failure.
     & "$PSScriptRoot\prepare_runtime.ps1"
-    if ($LASTEXITCODE -ne 0) { throw "Runtime preparation failed." }
+    if (-not (Test-Path "bin\wintun.dll")) { throw "Runtime preparation failed." }
 }
 
 go mod tidy

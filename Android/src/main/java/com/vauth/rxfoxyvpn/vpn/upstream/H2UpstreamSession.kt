@@ -43,9 +43,6 @@ import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.SslHandshakeCompletionEvent
 import io.netty.handler.ssl.SslProvider
 import io.netty.handler.ssl.SupportedCipherSuiteFilter
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory
-import java.security.cert.X509Certificate
-import javax.net.ssl.X509TrustManager
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.Future
 import kotlinx.coroutines.CompletableDeferred
@@ -228,15 +225,10 @@ class H2UpstreamSession(
 
     override suspend fun connect() = withContext(Dispatchers.IO) {
 
-        val trustAllManager = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-
         val sslContextBuilder = SslContextBuilder.forClient()
             .sslProvider(SslProvider.JDK)
-            .trustManager(trustAllManager)
+            // Default platform trust store: real chain validation. Hostname check is enforced
+            // below via endpointIdentificationAlgorithm against upstreamHost (also the SNI name).
             .protocols(*TLS_PROTOCOLS)
             .applicationProtocolConfig(
                 ApplicationProtocolConfig(

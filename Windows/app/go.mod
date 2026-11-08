@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
+	github.com/refraction-networking/utls v1.8.2
 	github.com/sagernet/sing v0.7.0-beta.2
 	github.com/sagernet/sing-box v1.12.0
 	golang.org/x/net v0.61.0

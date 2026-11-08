@@ -18,10 +18,9 @@ const (
 	// UserAgent matches the direct Firefox Accounts client profile used by
 	// the Android RXFoxyVPN implementation.
 	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0"
-	// SolverUA is the browser-like agent used while solving the Fastly challenge.
-	solverUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-		"Chrome/126.0 Safari/537.36"
 
 	powAlphabet     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	defaultTokenTTL = 24 * 3600
+
+	fxaOAuthTokenURL = "https://oauth.accounts.firefox.com/v1/token"
 )

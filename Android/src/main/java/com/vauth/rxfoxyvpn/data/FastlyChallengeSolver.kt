@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Cookie
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,17 +23,18 @@ private const val SOLVE_TIMEOUT_SECONDS = 60L
 private const val MAX_POST_BACK_ROUNDS = 8
 
 private const val SOLVER_USER_AGENT =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0"
 
 private const val POW_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 private val challengeSolveMutex = Mutex()
 
+private val FXA_COOKIE_HOSTS = listOf("accounts.firefox.com", "api.accounts.firefox.com", "oauth.accounts.firefox.com")
+
 private const val HTML_ACCEPT =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
 private val CHALLENGE_PREFIX_REGEX = Regex("/_fs-ch-[A-Za-z0-9]+")
-private val INIT_CALL_REGEX = Regex("init\\((\\[[^\\]]*\\]),\\s*\"([^\"]+)\",\\s*\"([^\"]+)\"")
 
 class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
 
@@ -85,6 +87,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
     ): String {
         val request = Request.Builder().url(url)
             .header("User-Agent", SOLVER_USER_AGENT)
+            .header("Accept-Encoding", "identity")
             .header("Accept", accept)
             .build()
         client.newCall(request).execute().use { response ->
@@ -99,18 +102,8 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
         return body to isChallenge
     }
 
-    private fun parseChallengeInit(script: String): Pair<JSONArray, String> {
-        val matches = INIT_CALL_REGEX.findAll(script).toList()
-        if (matches.isEmpty()) throw FastlyChallengeError("challenge init() call not found in script")
-        val last = matches.last()
-        val challenges = try {
-            JSONArray(last.groupValues[1])
-        } catch (e: Exception) {
-            throw FastlyChallengeError("could not parse challenge list: ${e.message}")
-        }
-        if (challenges.length() == 0) throw FastlyChallengeError("empty challenge list")
-        return challenges to last.groupValues[2]
-    }
+    private fun parseChallengeInit(script: String, prefix: String): Pair<JSONArray, String> =
+        parseFastlyChallengeInit(script, prefix)
 
     private fun fetchPat(client: OkHttpClient, prefixUrl: String, token: String): String {
         val patUrl = "$prefixUrl/pat?token=${URLEncoder.encode(token, "UTF-8")}"
@@ -119,6 +112,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
             .header("Accept", "text/plain")
             .header("Content-Type", "application/json")
             .header("User-Agent", SOLVER_USER_AGENT)
+            .header("Accept-Encoding", "identity")
             .header("Origin", baseOrigin(prefixUrl))
             .post(ByteArray(0).toRequestBody(null))
             .build()
@@ -190,8 +184,24 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
         if (cookies.isEmpty()) {
             throw FastlyChallengeError("challenge completed but no applicable cookies were issued")
         }
-        // Preserve the exact cookie scope/expiry/security attributes from Fastly.
-        cookieJar.addAll(cookies)
+        // Like the reference client: re-issue each cookie as a host-only cookie for every FxA origin
+        // (sign-in site, API host, OAuth host). A cookie scoped by Fastly to one host would otherwise
+        // never be sent to the API host that answered 406.
+        val installed = ArrayList<Cookie>()
+        for (host in FXA_COOKIE_HOSTS) {
+            for (cookie in cookies) {
+                val builder = Cookie.Builder()
+                    .name(cookie.name)
+                    .value(cookie.value)
+                    .hostOnlyDomain(host)
+                    .path("/")
+                if (cookie.secure) builder.secure()
+                if (cookie.httpOnly) builder.httpOnly()
+                if (cookie.persistent) builder.expiresAt(cookie.expiresAt)
+                installed.add(builder.build())
+            }
+        }
+        cookieJar.addAll(installed)
     }
 
     private fun solveOnHost(base: String) {
@@ -212,7 +222,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
         val prefixUrl = base + prefixMatch.value
 
         val script = fetchText(solver, "$prefixUrl/script.js?reload=true")
-        var (challenges, token) = parseChallengeInit(script)
+        var (challenges, token) = parseChallengeInit(script, prefixMatch.value)
 
         repeat(MAX_POST_BACK_ROUNDS) {
             val answers = JSONArray()
@@ -228,6 +238,7 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("User-Agent", SOLVER_USER_AGENT)
+            .header("Accept-Encoding", "identity")
                 .header("Origin", baseOrigin(prefixUrl))
                 .post(postBody)
                 .build()
@@ -251,4 +262,86 @@ class FastlyChallengeSolver(private val cookieJar: SimpleCookieJar) {
         }
         throw FastlyChallengeError("Fastly challenge did not complete within $MAX_POST_BACK_ROUNDS rounds")
     }
+}
+
+
+private val INIT_START_REGEX = Regex("""\binit\s*\(\s*\[""")
+
+/** End (exclusive) of the JSON array/object/string value starting at [start], or -1. Never evaluates script. */
+private fun jsonValueEnd(text: String, start: Int): Int {
+    if (start >= text.length) return -1
+    val first = text[start]
+    if (first != '"' && first != '[' && first != '{') return -1
+    var depth = 0
+    var inString = false
+    var i = start
+    while (i < text.length) {
+        val c = text[i]
+        if (inString) {
+            if (c == '\\') i++ else if (c == '"') {
+                inString = false
+                if (depth == 0) return i + 1
+            }
+        } else when (c) {
+            '"' -> inString = true
+            '[', '{' -> depth++
+            ']', '}' -> {
+                depth--
+                if (depth == 0) return i + 1
+            }
+        }
+        i++
+    }
+    return -1
+}
+
+private fun hasInitDelimiter(rest: String): Boolean {
+    if (rest.startsWith(")")) return true
+    return rest.startsWith(",") && rest.substring(1).isNotBlank()
+}
+
+private fun hasLegacyInitDelimiter(restIn: String): Boolean {
+    var rest = restIn
+    while (rest.startsWith("/*")) {
+        val close = rest.indexOf("*/", 2)
+        if (close < 0) return false
+        rest = rest.substring(close + 2).trim()
+    }
+    return hasInitDelimiter(rest)
+}
+
+/**
+ * Port of the reference parseChallengeInit: considers every init([...], "token", "prefix") call,
+ * newest first; accepts the one whose prefix equals the page's prefix and whose challenge list is
+ * valid JSON with a non-empty type on every entry. Tolerates "]" inside strings/nested values.
+ */
+internal fun parseFastlyChallengeInit(script: String, prefix: String): Pair<JSONArray, String> {
+    val starts = INIT_START_REGEX.findAll(script).toList()
+    var legacy: Pair<JSONArray, String>? = null
+    for (m in starts.asReversed()) {
+        val arrayStart = m.range.last
+        val arrayEnd = jsonValueEnd(script, arrayStart)
+        if (arrayEnd < 0) continue
+        val challenges = try { JSONArray(script.substring(arrayStart, arrayEnd)) } catch (_: Exception) { continue }
+        var rest = script.substring(arrayEnd).trimStart()
+        val strings = ArrayList<String>(2)
+        var ok = true
+        for (n in 0 until 2) {
+            if (!rest.startsWith(",")) { ok = false; break }
+            rest = rest.substring(1).trimStart()
+            val end = jsonValueEnd(rest, 0)
+            if (end < 0 || rest[0] != '"') { ok = false; break }
+            val value = try { JSONArray("[" + rest.substring(0, end) + "]").getString(0) } catch (_: Exception) { ok = false; break }
+            strings.add(value)
+            rest = rest.substring(end).trimStart()
+        }
+        if (!ok) continue
+        val token = strings[0]
+        if (strings[1] != prefix || token.isEmpty() || challenges.length() == 0) continue
+        if ((0 until challenges.length()).any { challenges.optJSONObject(it)?.optString("ty").isNullOrEmpty() }) continue
+        if (hasInitDelimiter(rest)) return challenges to token
+        if (legacy == null && hasLegacyInitDelimiter(rest)) legacy = challenges to token
+    }
+    legacy?.let { return it }
+    throw FastlyChallengeError("valid challenge init call not found in script")
 }
