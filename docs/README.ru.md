@@ -10,16 +10,16 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.4-FF6A00?style=flat-square)](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4)
-[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4)
+[![Version](https://img.shields.io/badge/version-v1.0.4-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4)
+[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
 <br>
 
-[**Загрузки**](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4) · [Исходный код](https://github.com/omidrx0/RxFoxyVPN)
+[**Загрузки**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4) · [Исходный код](https://github.com/omidrx0/RxFoxyVPN)
 
 [English](../README.md) · [فارسی](README.fa.md) · **Русский** · [简体中文](README.zh.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
@@ -29,7 +29,7 @@
 
 ## Обзор
 
-RXFoxyVPN — кроссплатформенный проект для **Android** и **Windows** с простым и единым интерфейсом на вашем языке. В репозитории находятся исходный код и документация; готовые сборки публикуются на странице [GitHub Releases](https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4).
+RXFoxyVPN — кроссплатформенный проект для **Android** и **Windows** с простым и единым интерфейсом на вашем языке. В репозитории находятся исходный код и документация; готовые сборки публикуются на странице [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4).
 
 ### Что нового в v1.0.4
 **Улучшение системы входа и исправление ошибок**
@@ -78,7 +78,7 @@ RXFoxyVPN — кроссплатформенный проект для **Android
 
 ## Загрузки · v1.0.4
 
-Последнюю сборку можно скачать на <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><b>GitHub Releases</b></a> — или выберите пакет, подходящий вашему устройству.
+Последнюю сборку можно скачать на <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><b>GitHub Releases</b></a> — или выберите пакет, подходящий вашему устройству.
 
 <table>
   <thead>
@@ -94,31 +94,31 @@ RXFoxyVPN — кроссплатформенный проект для **Android
         <sub>Android 8.0 и выше</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
         <b>Лучший выбор, если не уверены.</b> ⭐<br><sub>Работает на всех устройствах и архитектурах.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
         Современные телефоны и планшеты.<br><sub>64-битные процессоры ARM.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
         Старые устройства Android.<br><sub>32-битные процессоры ARM.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
         Устройства Intel/AMD и эмуляторы.<br><sub>64-бит.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
         Устройства Intel/AMD и эмуляторы.<br><sub>32-бит.</sub>
       </td>
     </tr>
@@ -128,13 +128,13 @@ RXFoxyVPN — кроссплатформенный проект для **Android
         <sub>Windows 10 и выше</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
         <b>Стандартный установщик для 64-битных ПК.</b> ⭐<br><sub>Создаёт ярлыки и легко удаляется.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/code3-dev/OmidVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
         Установка не требуется.<br><sub>Распакуйте ZIP и запустите.</sub>
       </td>
     </tr>
