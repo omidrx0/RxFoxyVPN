@@ -225,10 +225,30 @@ class H2UpstreamSession(
 
     override suspend fun connect() = withContext(Dispatchers.IO) {
 
+        val systemTrustManager = runCatching {
+            val keyStore = java.security.KeyStore.getInstance("AndroidCAStore").apply { load(null, null) }
+            val platformProvider = java.security.Security.getProvider("AndroidOpenSSL")
+            val tmf = if (platformProvider != null) {
+                javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm(), platformProvider)
+            } else {
+                javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+            }
+            tmf.init(keyStore)
+            tmf.trustManagers.filterIsInstance<javax.net.ssl.X509TrustManager>().firstOrNull()
+        }.getOrElse {
+            runCatching {
+                val tmf = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+                tmf.init(null as java.security.KeyStore?)
+                tmf.trustManagers.filterIsInstance<javax.net.ssl.X509TrustManager>().firstOrNull()
+            }.getOrNull()
+        }
+
         val sslContextBuilder = SslContextBuilder.forClient()
             .sslProvider(SslProvider.JDK)
-            // Default platform trust store: real chain validation. Hostname check is enforced
-            // below via endpointIdentificationAlgorithm against upstreamHost (also the SNI name).
+        if (systemTrustManager != null) {
+            sslContextBuilder.trustManager(systemTrustManager)
+        }
+        sslContextBuilder
             .protocols(*TLS_PROTOCOLS)
             .applicationProtocolConfig(
                 ApplicationProtocolConfig(
@@ -240,16 +260,10 @@ class H2UpstreamSession(
             )
             .ciphers(null, SupportedCipherSuiteFilter.INSTANCE)
 
-        val tlsProvider = TLS_PROVIDER
-        if (tlsProvider != null) {
-            sslContextBuilder.sslContextProvider(tlsProvider)
-        } else {
-            AppLogger.w(
-                TAG,
-                "Conscrypt is unavailable; falling back to the platform TLS stack " +
-                        "(protocols=${TLS_PROTOCOLS.joinToString()})",
-            )
-        }
+        AppLogger.i(
+            TAG,
+            "using platform TLS stack with AndroidCAStore system trust manager (protocols=${TLS_PROTOCOLS.joinToString()})",
+        )
         val sslContext: SslContext = sslContextBuilder.build()
 
         if (connectHost != upstreamHost) {
@@ -285,6 +299,9 @@ class H2UpstreamSession(
                     val engine = sslHandler.engine()
                     engine.sslParameters = engine.sslParameters.apply {
                         endpointIdentificationAlgorithm = TLS_ENDPOINT_IDENTIFICATION_HTTPS
+                        runCatching {
+                            serverNames = listOf(javax.net.ssl.SNIHostName(upstreamHost))
+                        }
                     }
 
                     val frameCodecBuilder = Http2FrameCodecBuilder.forClient()
@@ -377,8 +394,7 @@ class H2UpstreamSession(
                             } else {
                                 AppLogger.e(
                                     TAG,
-                                    "upstream channel error to $upstreamHost:$upstreamPort (often a TLS/ALPN handshake or, " +
-                                            "if an upstream proxy is configured, a proxy CONNECT failure)",
+                                    "upstream channel error to $upstreamHost:$upstreamPort (host=$upstreamHost, provider=${TLS_PROVIDER?.name ?: "Platform"}, android=${Build.VERSION.SDK_INT}, device=${Build.MANUFACTURER} ${Build.MODEL}): ${cause.javaClass.simpleName}: ${cause.message}",
                                     cause,
                                 )
                             }
@@ -407,7 +423,11 @@ class H2UpstreamSession(
                                     }
                                 } else {
                                     val cause = evt.cause() ?: IllegalStateException("TLS handshake failed with no cause")
-                                    AppLogger.e(TAG, "TLS/ALPN handshake to $connectHost:$upstreamPort failed", cause)
+                                    AppLogger.e(
+                                        TAG,
+                                        "TLS/ALPN handshake to $connectHost:$upstreamPort failed (host=$upstreamHost, provider=${TLS_PROVIDER?.name ?: "Platform"}, android=${Build.VERSION.SDK_INT}, device=${Build.MANUFACTURER} ${Build.MODEL}): ${cause.javaClass.simpleName}: ${cause.message}",
+                                        cause,
+                                    )
                                     handshakeDone.completeExceptionally(cause)
                                 }
                             }

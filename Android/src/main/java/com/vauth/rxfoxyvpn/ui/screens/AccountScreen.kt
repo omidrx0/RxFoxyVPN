@@ -104,6 +104,7 @@ fun AccountScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val app = context.applicationContext as com.vauth.rxfoxyvpn.RxFoxyVpnApp
     val scope = rememberCoroutineScope()
     var entitlement by remember { mutableStateOf<Entitlement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -119,7 +120,7 @@ fun AccountScreen(
                 errorMessage = LanguageManager.t("err_not_signed_in", "Not signed in.")
                 return@launch
             }
-            runCatching { GuardianClient().fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, accessToken) }
+            runCatching { app.guardianClient.fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, accessToken) }
                 .onSuccess { entitlement = it }
                 .onFailure { errorMessage = it.message ?: LanguageManager.t("err_load_account", "Failed to load account info") }
             isLoading = false
@@ -208,8 +209,7 @@ fun AccountScreen(
 
                         entitlement != null -> {
                             val info = entitlement!!
-                            val remaining = info.quotaRemaining
-                            val max = info.maxBytes
+                            val quotaState = info.quotaState
 
                             // ----- data card -----
                             GlassCard {
@@ -223,19 +223,31 @@ fun AccountScreen(
                                             modifier = Modifier.weight(1f),
                                         )
                                         Text(
-                                            text = when {
-                                                !info.limitedBandwidth -> LanguageManager.t("unlimited", "Unlimited")
-                                                remaining != null -> formatBytes(remaining)
-                                                max != null -> "${LanguageManager.t("limited", "Limited")}: ${formatBytes(max)}"
-                                                else -> LanguageManager.t("limited", "Limited")
+                                            text = when (quotaState) {
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Unlimited ->
+                                                    LanguageManager.t("quota_unlimited", "نامحدود ∞")
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Limited ->
+                                                    formatBytes(quotaState.remainingBytes)
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Error ->
+                                                    LanguageManager.t("quota_error_short", "خطا")
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Unknown ->
+                                                    if (info.maxBytes != null && info.maxBytes > 0L) {
+                                                        "${LanguageManager.t("limited", "Limited")}: ${formatBytes(info.maxBytes)}"
+                                                    } else {
+                                                        "—"
+                                                    }
                                             },
-                                            color = if (!info.limitedBandwidth) RxAcc.Good else RxAcc.Text,
+                                            color = when (quotaState) {
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Unlimited -> RxAcc.Good
+                                                is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Error -> RxAcc.Bad
+                                                else -> RxAcc.Text
+                                            },
                                             fontWeight = FontWeight.ExtraBold, fontSize = 17.sp,
                                         )
                                     }
 
-                                    if (info.limitedBandwidth && remaining != null && max != null && max > 0L) {
-                                        val target = (remaining.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+                                    if (quotaState is com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState.Limited) {
+                                        val target = (quotaState.remainingBytes.toFloat() / quotaState.limitBytes.toFloat()).coerceIn(0f, 1f)
                                         val fraction by animateFloatAsState(target, tween(700), label = "acc-quota")
                                         Box(
                                             Modifier
@@ -255,10 +267,10 @@ fun AccountScreen(
                                         }
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text(
-                                                "${formatBytes((max - remaining).coerceAtLeast(0L))}  ·  ${LanguageManager.t("used", "Used")}",
+                                                "${formatBytes(quotaState.usedBytes)}  ·  ${LanguageManager.t("used", "Used")}",
                                                 color = RxAcc.Mute, fontSize = 12.sp,
                                             )
-                                            Text(formatBytes(max), color = RxAcc.Mute, fontSize = 12.sp)
+                                            Text(formatBytes(quotaState.limitBytes), color = RxAcc.Mute, fontSize = 12.sp)
                                         }
                                     }
                                 }

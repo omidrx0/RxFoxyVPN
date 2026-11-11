@@ -147,6 +147,8 @@ func versionIsNewer(latest, current string) bool {
 }
 
 func numericVersion(v string) ([]int64, bool) {
+	v = strings.TrimSpace(v)
+	v = strings.TrimPrefix(strings.TrimPrefix(v, "v"), "V")
 	parts := strings.Split(v, ".")
 	if len(parts) < 2 || len(parts) > 4 {
 		return nil, false

@@ -2,6 +2,9 @@ package com.vauth.rxfoxyvpn.ui.screens
 
 import com.vauth.rxfoxyvpn.BuildConfig
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas as AndroidCanvas
 import android.net.Uri
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,6 +38,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -44,6 +49,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -62,6 +69,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,6 +85,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -96,6 +106,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -107,7 +118,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.caverock.androidsvg.SVG
 import com.vauth.rxfoxyvpn.R
+import com.vauth.rxfoxyvpn.data.CaptchaCancelledException
+import com.vauth.rxfoxyvpn.data.CaptchaNoticeKind
+import com.vauth.rxfoxyvpn.data.CaptchaPromptUiState
 import com.vauth.rxfoxyvpn.data.FxaAuthRepository
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.SavedAccountsStore
@@ -139,6 +154,7 @@ private object RxLogin {
 fun LoginScreen(
     authRepository: FxaAuthRepository,
     onSignedIn: () -> Unit,
+    onOpenBrowserSignIn: (email: String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val savedAccountsStore = remember { SavedAccountsStore(context) }
@@ -154,10 +170,24 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showSignUpDialog by remember { mutableStateOf(false) }
+    // Sign-in method: the existing direct form (default) or Mozilla's own page inside the app.
+    var browserMode by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val currentLang by LanguageManager.currentLang.collectAsState()
     val selectedLang by LanguageManager.selectedLang.collectAsState()
+    val captchaState by authRepository.captchaPrompt.collectAsState()
+    var captchaInput by remember { mutableStateOf("") }
+
+    LaunchedEffect(captchaState?.promptId) {
+        captchaInput = ""
+    }
+
+    DisposableEffect(authRepository) {
+        onDispose {
+            authRepository.cancelCaptcha()
+        }
+    }
 
     val langNames = mapOf(
         "en" to "English",
@@ -183,7 +213,13 @@ fun LoginScreen(
                     savedAccounts = savedAccountsStore.getSavedAccounts()
                 }
                 if (needsVerification) awaitingTwoFactor = true else onSignedIn()
-            }.onFailure { errorMessage = it.message ?: LanguageManager.t("err_signin_failed", "Sign-in failed") }
+            }.onFailure { err ->
+                errorMessage = if (err is CaptchaCancelledException) {
+                    null
+                } else {
+                    err.message ?: LanguageManager.t("err_signin_failed", "Sign-in failed")
+                }
+            }
         }
     }
 
@@ -266,22 +302,74 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(15.dp),
                 ) {
+                    val activeCaptcha = captchaState
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = if (awaitingTwoFactor) LanguageManager.t("code_h", "کد تأیید") else LanguageManager.t("login_h", "ورود"),
+                            text = when {
+                                activeCaptcha != null -> LanguageManager.t("captcha_title", "تأیید امنیتی (CAPTCHA)")
+                                awaitingTwoFactor -> LanguageManager.t("code_h", "کد تأیید")
+                                else -> LanguageManager.t("login_h", "ورود")
+                            },
                             color = RxLogin.Text, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold,
                         )
                         Text(
-                            text = if (awaitingTwoFactor) {
-                                LanguageManager.t("code_lead", "Firefox یک کد به ایمیلت فرستاد. آن را اینجا وارد کن.")
-                            } else {
-                                LanguageManager.t("login_lead", "با ایمیل و رمز حساب Firefox وارد شو.")
+                            text = when {
+                                activeCaptcha != null ->
+                                    LanguageManager.t("captcha_lead", "برای ادامهٔ ورود مستقیم، کاراکترهای داخل تصویر زیر را وارد کنید.")
+                                awaitingTwoFactor ->
+                                    LanguageManager.t("code_lead", "Firefox یک کد به ایمیلت فرستاد. آن را اینجا وارد کن.")
+                                browserMode ->
+                                    LanguageManager.t("browser_login_lead", "Sign in on Mozilla's own page inside the app. CAPTCHA and verification codes are handled there.")
+                                else ->
+                                    LanguageManager.t("login_lead", "با ایمیل و رمز حساب Firefox وارد شو.")
                             },
                             color = RxLogin.Mute, fontSize = 14.sp,
                         )
                     }
 
-                    if (!awaitingTwoFactor) {
+                    if (activeCaptcha != null) {
+                        DirectLoginCaptchaSection(
+                            captchaState = activeCaptcha,
+                            input = captchaInput,
+                            onInputChange = { captchaInput = it },
+                            onRefresh = {
+                                captchaInput = ""
+                                authRepository.refreshCaptcha()
+                            },
+                            onSubmit = {
+                                authRepository.submitCaptchaAnswer(captchaInput)
+                            },
+                            onCancel = {
+                                captchaInput = ""
+                                authRepository.cancelCaptcha()
+                            },
+                        )
+                    } else if (!awaitingTwoFactor) {
+                        SignInMethodSelector(browserMode = browserMode, onSelect = { browserMode = it; errorMessage = null })
+                    }
+
+                    if (activeCaptcha == null && !awaitingTwoFactor && browserMode) {
+                        // ----- Browser Sign-in: Mozilla's real page (CAPTCHA, email / authenticator codes) -----
+                        LoginField(
+                            label = LanguageManager.t("browser_login_email", "Email (optional)"),
+                            value = email,
+                            onChange = { email = it },
+                            placeholder = "you@example.com",
+                            icon = Icons.Default.Email,
+                            keyboardType = KeyboardType.Email,
+                        )
+                        Text(
+                            text = LanguageManager.t("browser_login_note", "Your password is typed on Mozilla's page and never passes through RxFoxyVPN."),
+                            color = RxLogin.Mute, fontSize = 12.sp,
+                        )
+                        GradientButton(
+                            text = LanguageManager.t("browser_login_btn", "Open Mozilla sign-in"),
+                            loading = false,
+                            enabled = true,
+                            onClick = { onOpenBrowserSignIn(email.trim()) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else if (activeCaptcha == null && !awaitingTwoFactor) {
                         // ----- saved accounts -----
                         if (savedAccounts.isNotEmpty()) {
                             var accountsExpanded by remember { mutableStateOf(false) }
@@ -429,7 +517,7 @@ fun LoginScreen(
                             onClick = { performLogin(email, password) },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                    } else {
+                    } else if (activeCaptcha == null) {
                         // ----- two-factor code -----
                         LoginField(
                             label = LanguageManager.t("code_label", "کد ایمیل"),
@@ -453,7 +541,13 @@ fun LoginScreen(
                                     val result = authRepository.submitTwoFactorCode(code)
                                     isLoading = false
                                     result.onSuccess { onSignedIn() }
-                                        .onFailure { errorMessage = it.message ?: LanguageManager.t("err_verify_failed", "Verification failed") }
+                                        .onFailure { err ->
+                                            errorMessage = if (err is CaptchaCancelledException) {
+                                                null
+                                            } else {
+                                                err.message ?: LanguageManager.t("err_verify_failed", "Verification failed")
+                                            }
+                                        }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -1027,5 +1121,276 @@ private fun SignUpStep(number: String, title: String, desc: String) {
             Text(title, color = RxLogin.Text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(desc, color = RxLogin.Mute, fontSize = 13.sp)
         }
+    }
+}
+
+/* ------------------------------------------------------------------------------------------
+   Sign-in method selector (Direct / Browser)
+   ------------------------------------------------------------------------------------------ */
+
+@Composable
+private fun SignInMethodSelector(browserMode: Boolean, onSelect: (Boolean) -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(RxLogin.Panel2)
+            .border(1.dp, RxLogin.Line, shape)
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        MethodChip(LanguageManager.t("login_method_direct", "Direct sign-in"), !browserMode, Modifier.weight(1f)) { onSelect(false) }
+        MethodChip(LanguageManager.t("login_method_browser", "Browser sign-in"), browserMode, Modifier.weight(1f)) { onSelect(true) }
+    }
+}
+
+@Composable
+private fun MethodChip(text: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) RxLogin.Violet.copy(alpha = 0.85f) else Color.Transparent,
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Color.White else RxLogin.Mute,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(vertical = 9.dp, horizontal = 6.dp),
+        )
+    }
+}
+
+/* ------------------------------------------------------------------------------------------
+   Direct Sign-In Interactive Fastly CAPTCHA Step
+   ------------------------------------------------------------------------------------------ */
+
+@Composable
+private fun DirectLoginCaptchaSection(
+    captchaState: CaptchaPromptUiState,
+    input: String,
+    onInputChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val decodedBitmap: ImageBitmap? = remember(captchaState.promptId, captchaState.imageBytes) {
+        decodeCaptchaImageBitmap(captchaState.imageBytes, captchaState.mimeType)
+    }
+
+    val noticeText: String? = captchaState.validationError ?: when (captchaState.notice) {
+        CaptchaNoticeKind.WRONG_ANSWER ->
+            LanguageManager.t("captcha_wrong", "کد واردشده نادرست بود. لطفاً متن تصویر جدید را وارد کنید.")
+        CaptchaNoticeKind.EXPIRED ->
+            LanguageManager.t("captcha_expired", "کد امنیتی قبلی منقضی شده بود؛ تصویر جدید دریافت شد. لطفاً کد جدید را وارد کنید.")
+        CaptchaNoticeKind.DECODE_FAILED ->
+            LanguageManager.t("captcha_decode_err", "تصویر امنیتی قابل نمایش نیست. روی «دریافت تصویر جدید» بزنید.")
+        CaptchaNoticeKind.REFRESH_FAILED ->
+            LanguageManager.t("captcha_refresh_err", "خطا در دریافت تصویر جدید. اتصال اینترنت را بررسی و دوباره تلاش کنید.")
+        null -> null
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // High-contrast light container so dark CAPTCHA glyphs on transparent PNGs remain legible.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 104.dp, max = 160.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.White)
+                .border(1.5.dp, RxLogin.Line2, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (decodedBitmap != null) {
+                Image(
+                    bitmap = decodedBitmap,
+                    contentDescription = LanguageManager.t("captcha_title", "تأیید امنیتی (CAPTCHA)"),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 96.dp, max = 148.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                )
+            } else if (!captchaState.isRefreshing) {
+                Text(
+                    text = LanguageManager.t(
+                        "captcha_decode_err",
+                        "تصویر امنیتی قابل نمایش نیست. روی «دریافت تصویر جدید» بزنید.",
+                    ),
+                    color = Color(0xFFB91C1C),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(14.dp),
+                )
+            }
+
+            if (captchaState.isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.78f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        color = RxLogin.Violet,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Surface(
+                onClick = onRefresh,
+                enabled = !captchaState.isRefreshing && !captchaState.isSubmitting,
+                shape = RoundedCornerShape(11.dp),
+                color = RxLogin.Panel2,
+                border = BorderStroke(1.dp, RxLogin.Line2),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = RxLogin.Cyan,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = LanguageManager.t("captcha_refresh", "دریافت تصویر جدید"),
+                        color = RxLogin.Text,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(
+                text = LanguageManager.t("captcha_field_label", "متن تصویر امنیتی"),
+                color = RxLogin.Mute,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChange,
+                enabled = !captchaState.isSubmitting,
+                placeholder = {
+                    Text(
+                        text = LanguageManager.t("captcha_placeholder", "حروف و اعداد تصویر…"),
+                        color = RxLogin.Mute.copy(alpha = 0.5f),
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Ascii,
+                    autoCorrectEnabled = false,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (input.trim().isNotEmpty() && !captchaState.isRefreshing && !captchaState.isSubmitting) {
+                            onSubmit()
+                        }
+                    },
+                ),
+                textStyle = TextStyle(fontSize = 16.sp, textDirection = TextDirection.Ltr),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = RxLogin.Violet,
+                    unfocusedBorderColor = RxLogin.Line,
+                    focusedTextColor = RxLogin.Text,
+                    unfocusedTextColor = RxLogin.Text,
+                    focusedContainerColor = Color(0xFF080A20).copy(alpha = 0.85f),
+                    unfocusedContainerColor = Color(0xFF080A20).copy(alpha = 0.62f),
+                    cursorColor = RxLogin.Pink,
+                    focusedLeadingIconColor = RxLogin.Pink,
+                    unfocusedLeadingIconColor = RxLogin.Mute,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (!noticeText.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(RxLogin.Bad.copy(alpha = 0.12f))
+                    .border(1.dp, RxLogin.Bad.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+            ) {
+                Text(
+                    text = noticeText,
+                    color = RxLogin.Bad,
+                    fontSize = 13.sp,
+                )
+            }
+        }
+
+        GradientButton(
+            text = LanguageManager.t("captcha_submit", "تأیید و ادامه ورود"),
+            loading = captchaState.isSubmitting,
+            enabled = input.trim().isNotEmpty() &&
+                decodedBitmap != null &&
+                !captchaState.isRefreshing &&
+                !captchaState.isSubmitting,
+            onClick = onSubmit,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        TextButton(
+            onClick = onCancel,
+            enabled = !captchaState.isSubmitting,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Text(
+                text = LanguageManager.t("back", "برگشت"),
+                color = Color(0xFFC4B5FD),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+private fun decodeCaptchaImageBitmap(bytes: ByteArray, mimeType: String): ImageBitmap? {
+    if (bytes.isEmpty()) return null
+    return try {
+        if (mimeType.contains("svg", ignoreCase = true)) {
+            val svg = SVG.getFromInputStream(bytes.inputStream())
+            val width = svg.documentWidth.takeIf { it > 0f }?.toInt()?.coerceIn(120, 1200) ?: 400
+            val height = svg.documentHeight.takeIf { it > 0f }?.toInt()?.coerceIn(60, 600) ?: 140
+            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = AndroidCanvas(bmp)
+            svg.renderToCanvas(canvas)
+            bmp.asImageBitmap()
+        } else {
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }
+    } catch (_: Throwable) {
+        null
     }
 }

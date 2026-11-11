@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
@@ -111,6 +112,7 @@ import com.vauth.rxfoxyvpn.R
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.SettingsStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import androidx.compose.foundation.layout.exclude
@@ -173,6 +175,17 @@ fun SettingsScreen(
     var showUpstreamProxyAddressDialog by remember { mutableStateOf(false) }
     var showUpstreamProxyCredentialsDialog by remember { mutableStateOf(false) }
     var showSplitTunnelPage by remember { mutableStateOf(false) }
+    var showRelaySettingsPage by remember { mutableStateOf(false) }
+    // Control-plane relay (Mozilla sign-in / Guardian / server list only; independent of the proxy settings above)
+    var sharedRelayEnabled by remember { mutableStateOf(settingsStore.sharedRelayEnabled) }
+    var personalRelayEnabled by remember { mutableStateOf(settingsStore.personalRelayEnabled) }
+    var personalRelayOnly by remember { mutableStateOf(settingsStore.personalRelayOnly) }
+    var personalRelayUrl by remember { mutableStateOf(settingsStore.personalRelayUrl) }
+    var showRelayUrlDialog by remember { mutableStateOf(false) }
+    var relayTesting by remember { mutableStateOf(false) }
+    var relayStatus by remember { mutableStateOf<String?>(null) }
+    var relayStatusOk by remember { mutableStateOf(false) }
+    val relayScope = androidx.compose.runtime.rememberCoroutineScope()
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showAndroidUpdateDialog by remember { mutableStateOf(false) }
     val currentLang by LanguageManager.currentLang.collectAsState()
@@ -205,6 +218,19 @@ fun SettingsScreen(
             },
         )
     }
+    if (showRelayUrlDialog) {
+        RelayUrlDialog(
+            current = personalRelayUrl,
+            onDismiss = { showRelayUrlDialog = false },
+            onConfirm = { value ->
+                personalRelayUrl = value.trim()
+                settingsStore.personalRelayUrl = personalRelayUrl
+                relayStatus = null
+                showRelayUrlDialog = false
+            },
+        )
+    }
+
     if (showDohProviderDialog) {
         DohProviderPickerDialog(
             current = dohProvider,
@@ -319,6 +345,53 @@ fun SettingsScreen(
                         settingsStore.excludedApps = it
                         showSplitTunnelPage = false
                     },
+                )
+            } else if (showRelaySettingsPage) {
+                RelaySettingsPage(
+                    sharedRelayEnabled = sharedRelayEnabled,
+                    onSharedRelayChanged = {
+                        sharedRelayEnabled = it
+                        settingsStore.sharedRelayEnabled = it
+                    },
+                    personalRelayEnabled = personalRelayEnabled,
+                    onPersonalRelayChanged = {
+                        personalRelayEnabled = it
+                        settingsStore.personalRelayEnabled = it
+                    },
+                    personalRelayUrl = personalRelayUrl,
+                    onOpenRelayUrlDialog = { showRelayUrlDialog = true },
+                    personalRelayOnly = personalRelayOnly,
+                    onPersonalRelayOnlyChanged = {
+                        personalRelayOnly = it
+                        settingsStore.personalRelayOnly = it
+                    },
+                    relayTesting = relayTesting,
+                    relayStatus = relayStatus,
+                    onTestPersonalRelay = {
+                        if (!relayTesting) {
+                            val parsed = com.vauth.rxfoxyvpn.data.relay.RelayPolicy.validatePersonalRelayUrl(personalRelayUrl)
+                            val url = parsed.getOrNull()
+                            if (url == null) {
+                                relayStatusOk = false
+                                relayStatus = relayUrlErrorText(parsed.exceptionOrNull())
+                            } else {
+                                relayTesting = true
+                                relayScope.launch {
+                                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        com.vauth.rxfoxyvpn.data.relay.RelayRuntime.healthChecker.check(url)
+                                    }
+                                    relayTesting = false
+                                    relayStatusOk = result.ready
+                                    relayStatus = if (result.ready) {
+                                        LanguageManager.t("relay_status_ok", "Relay is ready") + " (${result.elapsedMs} ms)"
+                                    } else {
+                                        relayFailureText(result.failure)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onClose = { showRelaySettingsPage = false },
                 )
             } else {
                 Column(Modifier.fillMaxSize()) {
@@ -516,6 +589,29 @@ fun SettingsScreen(
                                     )
                                 }
                             }
+                        }
+
+                        // ---------- Control-plane relay (compact entry; opens full sub-page on click) ----------
+                        Section(LanguageManager.t("relay_server_menu", "سرور رله")) {
+                            val relaySummary = when {
+                                personalRelayEnabled && personalRelayOnly ->
+                                    LanguageManager.t("relay_summary_personal_only", "فقط رله شخصی فعال است")
+                                sharedRelayEnabled && personalRelayEnabled ->
+                                    LanguageManager.t("relay_summary_both", "رله اشتراکی و شخصی فعال است")
+                                sharedRelayEnabled ->
+                                    LanguageManager.t("relay_summary_shared", "رله اشتراکی فعال است")
+                                personalRelayEnabled ->
+                                    LanguageManager.t("relay_summary_personal", "رله شخصی فعال است")
+                                else ->
+                                    LanguageManager.t("relay_summary_off", "غیرفعال")
+                            }
+                            NavRow(
+                                icon = Icons.Default.Router,
+                                tint = RxSet.Cyan,
+                                title = LanguageManager.t("relay_server_menu", "سرور رله"),
+                                subtitle = relaySummary,
+                                onClick = { showRelaySettingsPage = true },
+                            )
                         }
 
                         // ---------- Account ----------
@@ -1487,4 +1583,160 @@ private fun UpstreamProxyCredentialsDialog(
 private fun updateSettingsLabel(lang: String, key: String): String = when (key) {
     "title" -> when (lang) { "fa" -> "بررسی به‌روزرسانی"; "ar" -> "التحقق من التحديثات"; "ru" -> "Проверить обновления"; "ko" -> "업데이트 확인"; "zh" -> "检查更新"; else -> "Check for updates" }
     else -> when (lang) { "fa" -> "بررسی نسخه جدید در گیت‌هاب"; "ar" -> "التحقق من إصدار جديد على GitHub"; "ru" -> "Проверить новую версию на GitHub"; "ko" -> "GitHub에서 새 버전 확인"; "zh" -> "检查 GitHub 上的新版本"; else -> "Check for a new version on GitHub" }
+}
+
+private fun relayUrlErrorText(error: Throwable?): String {
+    val kind = (error as? com.vauth.rxfoxyvpn.data.relay.RelayPolicy.PersonalUrlException)?.error
+    return when (kind) {
+        com.vauth.rxfoxyvpn.data.relay.RelayPolicy.PersonalUrlError.NOT_HTTPS ->
+            LanguageManager.t("relay_err_not_https", "The relay URL must start with https://")
+        com.vauth.rxfoxyvpn.data.relay.RelayPolicy.PersonalUrlError.NO_SECRET ->
+            LanguageManager.t("relay_err_no_secret", "The relay URL must end with ?secret=YOUR_SECRET")
+        else -> LanguageManager.t("relay_err_invalid_url", "This is not a valid relay URL")
+    }
+}
+
+private fun relayFailureText(kind: com.vauth.rxfoxyvpn.data.relay.RelayFailure?): String = when (kind) {
+    com.vauth.rxfoxyvpn.data.relay.RelayFailure.WRONG_SECRET ->
+        LanguageManager.t("relay_err_wrong_secret", "Wrong secret: it must match the SECRET set in the relay")
+    com.vauth.rxfoxyvpn.data.relay.RelayFailure.NOT_SET_UP ->
+        LanguageManager.t("relay_err_not_set_up", "The relay has no secret set yet; set SECRET and deploy again")
+    com.vauth.rxfoxyvpn.data.relay.RelayFailure.TIMEOUT ->
+        LanguageManager.t("relay_err_timeout", "The relay did not answer in time")
+    com.vauth.rxfoxyvpn.data.relay.RelayFailure.UNRECOGNISED ->
+        LanguageManager.t("relay_err_not_relay", "This address is not a relay, or the relay code is outdated; deploy the latest version")
+    else -> LanguageManager.t("relay_err_connection", "Could not connect to the relay")
+}
+
+@Composable
+private fun RelaySettingsPage(
+    sharedRelayEnabled: Boolean,
+    onSharedRelayChanged: (Boolean) -> Unit,
+    personalRelayEnabled: Boolean,
+    onPersonalRelayChanged: (Boolean) -> Unit,
+    personalRelayUrl: String,
+    onOpenRelayUrlDialog: () -> Unit,
+    personalRelayOnly: Boolean,
+    onPersonalRelayOnlyChanged: (Boolean) -> Unit,
+    relayTesting: Boolean,
+    relayStatus: String?,
+    onTestPersonalRelay: () -> Unit,
+    onClose: () -> Unit,
+) {
+    BackHandler(onBack = onClose)
+
+    Column(Modifier.fillMaxSize()) {
+        PageHeader(
+            title = LanguageManager.t("relay_server_menu", "سرور رله"),
+            subtitle = null,
+            onBack = onClose,
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Section(LanguageManager.t("relay_shared_section", "رله اشتراکی")) {
+                Text(
+                    text = LanguageManager.t(
+                        "relay_desc",
+                        "Used only for Mozilla sign-in and authorization requests when Mozilla refuses your region (HTTP 451). VPN traffic never goes through a relay.",
+                    ),
+                    color = RxSet.Mute,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+                RowDivider()
+                SwitchRow(
+                    icon = Icons.Default.Public,
+                    tint = RxSet.Cyan,
+                    title = LanguageManager.t("relay_shared", "Shared relay (automatic)"),
+                    subtitle = LanguageManager.t(
+                        "relay_shared_hint",
+                        "Tried only after HTTP 451 from Mozilla's authorization server. A relay operator can see the account token while forwarding.",
+                    ),
+                    checked = sharedRelayEnabled,
+                    onChecked = onSharedRelayChanged,
+                )
+            }
+
+            Section(LanguageManager.t("relay_personal", "Personal relay")) {
+                SwitchRow(
+                    icon = Icons.Default.Router,
+                    tint = RxSet.Pink,
+                    title = LanguageManager.t("relay_personal", "Personal relay"),
+                    subtitle = LanguageManager.t(
+                        "relay_privacy_note",
+                        "A relay forwards your Authorization header and account tokens. Prefer a relay you control.",
+                    ),
+                    checked = personalRelayEnabled,
+                    onChecked = onPersonalRelayChanged,
+                )
+                RowDivider()
+                NavRow(
+                    icon = Icons.Default.Link,
+                    tint = RxSet.Pink,
+                    title = LanguageManager.t("relay_personal_url", "Relay URL"),
+                    // Only the host is shown: the URL's secret never appears on screen after it is saved.
+                    subtitle = personalRelayUrl.ifBlank { null }?.let { saved ->
+                        com.vauth.rxfoxyvpn.data.relay.RelayPolicy.validatePersonalRelayUrl(saved).getOrNull()?.host
+                    } ?: LanguageManager.t("not_set", "Not set"),
+                    onClick = onOpenRelayUrlDialog,
+                )
+                RowDivider()
+                SwitchRow(
+                    icon = Icons.Default.Lock,
+                    tint = RxSet.Pink,
+                    title = LanguageManager.t("relay_personal_only", "Personal relay only (never use shared)"),
+                    subtitle = null,
+                    checked = personalRelayOnly,
+                    onChecked = onPersonalRelayOnlyChanged,
+                )
+                RowDivider()
+                NavRow(
+                    icon = Icons.Default.Speed,
+                    tint = RxSet.Good,
+                    title = if (relayTesting) {
+                        LanguageManager.t("relay_testing", "Testing…")
+                    } else {
+                        LanguageManager.t("relay_test", "Test relay")
+                    },
+                    subtitle = relayStatus ?: LanguageManager.t("relay_status_idle", "Not tested"),
+                    onClick = onTestPersonalRelay,
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun RelayUrlDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var value by remember { mutableStateOf(current) }
+    val parsed = if (value.isBlank()) null else com.vauth.rxfoxyvpn.data.relay.RelayPolicy.validatePersonalRelayUrl(value)
+    // An empty field is allowed (it clears the saved URL); anything else must be a valid relay URL.
+    val valid = value.isBlank() || parsed?.isSuccess == true
+    RxDialog(
+        title = LanguageManager.t("relay_personal_url", "Relay URL"),
+        onDismiss = onDismiss,
+        onConfirm = { onConfirm(value) },
+        confirmEnabled = valid,
+    ) {
+        RxField(
+            value = value,
+            onChange = { value = it },
+            label = LanguageManager.t("relay_personal_hint", "https://your-worker.workers.dev/?secret=..."),
+            keyboardType = KeyboardType.Uri,
+            isError = !valid,
+            password = false,
+        )
+        if (!valid) {
+            Text(relayUrlErrorText(parsed?.exceptionOrNull()), color = RxSet.Bad, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
 }

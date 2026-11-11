@@ -43,6 +43,7 @@ type options struct {
 	apiProxy, caFile          string
 	insecure, noBrowser       bool
 	nativeFrame, browser      bool
+	fxaWebView                bool
 	verbose, showVersion      bool
 }
 
@@ -58,6 +59,7 @@ func parseFlags() options {
 	fs.BoolVar(&o.noBrowser, "no-browser", false, "do not open any window (panel only reachable by URL)")
 	fs.BoolVar(&o.nativeFrame, "native-frame", false, "use the normal Windows title bar instead of the custom one")
 	fs.BoolVar(&o.browser, "browser", false, "use an Edge/Chrome app window instead of the native window + tray icon")
+	fs.BoolVar(&o.fxaWebView, "fxa-webview", false, "internal isolated Mozilla sign-in window")
 	fs.BoolVar(&o.verbose, "v", false, "verbose log")
 	fs.BoolVar(&o.verbose, "verbose", false, "verbose log")
 	fs.BoolVar(&o.showVersion, "version", false, "print the version and exit")
@@ -84,6 +86,12 @@ func run() int {
 		fmt.Println("RXFOXYVPN", version)
 		return 0
 	}
+	if o.fxaWebView {
+		if err := desktop.RunFxaSignInWindow(); err != nil {
+			return 2
+		}
+		return 0
+	}
 	setupLogging(o.verbose)
 
 	if platform.IsWindows && !platform.IsAdmin() {
@@ -105,8 +113,11 @@ func run() int {
 	}
 
 	a, err := app.New(app.Options{
-		SocksPort: o.socksPort, HTTPPort: o.httpPort, APIProxy: o.apiProxy,
-		TLS: foxy.TLSOptions{CAFile: o.caFile, Insecure: o.insecure},
+		SocksPort:        o.socksPort,
+		HTTPPort:         o.httpPort,
+		APIProxy:         o.apiProxy,
+		TLS:              foxy.TLSOptions{CAFile: o.caFile, Insecure: o.insecure},
+		LaunchFxaWebView: desktop.LaunchFxaWebViewHelper,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "could not start:", err)

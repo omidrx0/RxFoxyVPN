@@ -10,18 +10,61 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"strings"
 	"time"
+	"unicode"
 )
 
 const (
 	// maxChallengeAttempts bounds how many times one FxA call re-solves the Fastly challenge.
 	maxChallengeAttempts = 5
-	// fxaChallengeBudget bounds the whole recovery after the first HTTP 406 (alternate
-	// requests, solving, and the final retry).
+	// fxaChallengeBudget bounds automatic recovery after the first HTTP 406.
 	fxaChallengeBudget = 90 * time.Second
-	// fxaErrnoInvalidToken is FxA's "invalid token" errno.
-	fxaErrnoInvalidToken = 108
+
+	// FxA API error numbers from Mozilla's ecosystem-platform specification.
+	fxaErrnoUnverifiedAccount  = 104
+	fxaErrnoInvalidParameter   = 107
+	fxaErrnoInvalidToken       = 108
+	fxaErrnoThrottled          = 114
+	fxaErrnoIncorrectEmailCase = 120
+	fxaErrnoRequestBlocked     = 125
+	fxaErrnoUnverifiedSession  = 138
+	fxaErrnoServiceUnavailable = 201
 )
+
+// NormalizeEmail strips whitespace and invisible Unicode format characters (ZWNJ/ZWJ/bidi marks/BOM).
+func NormalizeEmail(raw string) string {
+	var b strings.Builder
+	b.Grow(len(raw))
+	for _, r := range strings.TrimSpace(raw) {
+		if unicode.IsSpace(r) || unicode.In(r, unicode.Cf) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// NormalizeCode converts Persian (۰-۹) and Arabic-Indic (٠-٩) digits to ASCII 0-9
+// and strips spaces, hyphens, and invisible Unicode format characters.
+func NormalizeCode(raw string) string {
+	var b strings.Builder
+	b.Grow(len(raw))
+	for _, r := range strings.TrimSpace(raw) {
+		switch {
+		case r >= '\u06F0' && r <= '\u06F9':
+			b.WriteByte(byte('0' + (r - '\u06F0')))
+		case r >= '\u0660' && r <= '\u0669':
+			b.WriteByte(byte('0' + (r - '\u0660')))
+		case r == '-' || unicode.IsSpace(r) || unicode.In(r, unicode.Cf):
+			continue
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 // Fxa is the Firefox Accounts auth-server client.
 type Fxa struct{ cp *ControlPlane }
@@ -31,6 +74,7 @@ type LoginResponse struct {
 	SessionToken       string `json:"sessionToken"`
 	Verified           bool   `json:"verified"`
 	VerificationMethod string `json:"verificationMethod"`
+	VerificationReason string `json:"verificationReason"`
 }
 
 // TokenResponse is an OAuth token answer.
@@ -38,6 +82,13 @@ type TokenResponse struct {
 	AccessToken  string  `json:"access_token"`
 	RefreshToken string  `json:"refresh_token"`
 	ExpiresIn    float64 `json:"expires_in"`
+	ClientID     string  `json:"client_id,omitempty"`
+}
+
+// RecoveryEmailStatusResponse is the response of GET /recovery_email/status.
+type RecoveryEmailStatusResponse struct {
+	Email    string `json:"email"`
+	Verified bool   `json:"verified"`
 }
 
 // jsonCompact encodes v like Python json.dumps(separators=(",", ":")) (no HTML escaping).
@@ -70,7 +121,10 @@ func oauthHeaders() map[string]string {
 	}
 }
 
-func apiErrorFrom(r *Response) *FxaAPIError {
+func apiErrorFrom(r *Response) error {
+	if r.Status == http.StatusUnavailableForLegalReasons {
+		return &RegionBlockedError{Exhausted: r.Header.Get(RelayRecoveryExhaustedHeader)}
+	}
 	var e struct {
 		Message string `json:"message"`
 		Errno   int    `json:"errno"`
@@ -88,10 +142,7 @@ func apiErrorFrom(r *Response) *FxaAPIError {
 	return &FxaAPIError{Message: msg, Errno: e.Errno, Status: r.Status, Body: raw}
 }
 
-// send runs one FxA request with the HTTP 406 recovery: on 406 (Fastly's bot check, empty body)
-// the alternate route is tried first, then the challenge is solved and the request repeated
-// (a fresh request, a fresh HAWK nonce each time), bounded by maxChallengeAttempts and one
-// overall budget. Responses are fully read, so nothing is left open between attempts.
+// send runs one FxA request with bounded HTTP 406 recovery.
 func (f *Fxa) send(ctx context.Context, newRequest func(ctx context.Context) (*Response, error),
 	alternate alternateFunc, hawkID string, hawkKey []byte) (*Response, error) {
 	r, err := newRequest(ctx)
@@ -99,7 +150,11 @@ func (f *Fxa) send(ctx context.Context, newRequest func(ctx context.Context) (*R
 		return r, err
 	}
 	slog.Info("the account server answered HTTP 406 (Fastly bot check); starting recovery")
-	rctx, cancel := context.WithTimeout(ctx, fxaChallengeBudget)
+	budget := fxaChallengeBudget
+	if allowsInteractiveCaptcha(ctx) {
+		budget = interactiveCaptchaTimeout + 60*time.Second
+	}
+	rctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	for solved := 0; ; solved++ {
 		if alternate != nil {
@@ -112,6 +167,10 @@ func (f *Fxa) send(ctx context.Context, newRequest func(ctx context.Context) (*R
 				"Mozilla's security check still answers HTTP 406 after %d solved challenges", solved)}
 		}
 		if err := f.cp.SolveChallenge(rctx); err != nil {
+			var cancelErr CaptchaCancelledError
+			if errors.As(err, &cancelErr) {
+				return nil, err
+			}
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
@@ -142,9 +201,13 @@ func (f *Fxa) do(ctx context.Context, method, path string, body any, sessionToke
 func (f *Fxa) doCall(ctx context.Context, method, path string, body any, sessionToken string,
 	oauth bool, alternate alternateFunc) ([]byte, error) {
 	rawURL := fxaAuthServer + path
-	payload, err := jsonCompact(body)
-	if err != nil {
-		return nil, err
+	var payload []byte
+	var err error
+	if body != nil && !strings.EqualFold(method, http.MethodGet) && !strings.EqualFold(method, http.MethodHead) {
+		payload, err = jsonCompact(body)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var hawkID string
 	var hawkKey []byte
@@ -155,7 +218,10 @@ func (f *Fxa) doCall(ctx context.Context, method, path string, body any, session
 		}
 	}
 	newRequest := func(ctx context.Context) (*Response, error) {
-		headers := map[string]string{"Content-Type": "application/json"}
+		headers := map[string]string{"Accept": "application/json"}
+		if payload != nil {
+			headers["Content-Type"] = "application/json"
+		}
 		if oauth {
 			headers = oauthHeaders()
 		}
@@ -179,8 +245,7 @@ func (f *Fxa) doCall(ctx context.Context, method, path string, body any, session
 }
 
 // exchangeSessionWithOAuthCode uses FxA's session-authenticated authorization-code grant (PKCE)
-// when the direct session-to-token exchange is refused at the edge. It returns the token
-// response, or nil when the edge refuses this route too.
+// when the direct session-to-token exchange is refused at the edge.
 func (f *Fxa) exchangeSessionWithOAuthCode(ctx context.Context, hawkID string, hawkKey []byte) (*Response, error) {
 	var secret [32]byte
 	if _, err := rand.Read(secret[:]); err != nil {
@@ -250,13 +315,16 @@ func (f *Fxa) exchangeSessionWithOAuthCode(ctx context.Context, hawkID string, h
 		slog.Info("OAuth authorization-code exchange accepted after HTTP 406")
 		return tokens, nil
 	case 406:
-		return nil, nil // let the original request use its challenge flow
+		return nil, nil
 	}
 	return nil, oauthCodeError(tokens, "OAuth authorization code exchange")
 }
 
 // oauthCodeError keeps the errno but never the body, which may carry a code or verifier.
 func oauthCodeError(r *Response, step string) error {
+	if r.Status == http.StatusUnavailableForLegalReasons {
+		return &RegionBlockedError{Exhausted: r.Header.Get(RelayRecoveryExhaustedHeader)}
+	}
 	var data struct {
 		Errno int `json:"errno"`
 	}
@@ -264,9 +332,7 @@ func oauthCodeError(r *Response, step string) error {
 	return &FxaAPIError{Message: step + " failed", Errno: data.Errno, Status: r.Status}
 }
 
-// refreshAtOAuthEndpoint repeats a refresh grant at Mozilla's OAuth endpoint after the API host
-// answered 406. Both endpoints share one refresh-token store. A nil response leaves the
-// challenge path available.
+// refreshAtOAuthEndpoint repeats a refresh grant at Mozilla's OAuth endpoint.
 func (f *Fxa) refreshAtOAuthEndpoint(ctx context.Context, payload []byte) (*Response, error) {
 	r, err := f.cp.Request(ctx, "POST", fxaOAuthTokenURL, oauthHeaders(), payload)
 	if err != nil {
@@ -274,16 +340,19 @@ func (f *Fxa) refreshAtOAuthEndpoint(ctx context.Context, payload []byte) (*Resp
 	}
 	switch r.Status {
 	case 200:
-		slog.Info("OAuth refresh accepted by Mozilla's OAuth endpoint after HTTP 406")
+		slog.Info("OAuth refresh accepted by Mozilla's OAuth endpoint")
 		return r, nil
 	case 406:
 		return nil, nil
-	case 400:
-		apiErr := apiErrorFrom(r)
-		if apiErr.Errno == fxaErrnoInvalidToken {
+	case 451:
+		return nil, &RegionBlockedError{Exhausted: r.Header.Get(RelayRecoveryExhaustedHeader)}
+	case 400, 401, 403:
+		errObj := apiErrorFrom(r)
+		if apiErr, ok := errObj.(*FxaAPIError); ok && apiErr.Errno == fxaErrnoInvalidToken {
 			apiErr.Message = "invalid refresh token"
 			return nil, apiErr
 		}
+		return nil, errObj
 	}
 	return nil, fmt.Errorf("Mozilla's OAuth endpoint returned HTTP %d", r.Status)
 }
@@ -295,29 +364,41 @@ func decode(raw []byte, out any) error {
 	return json.Unmarshal(raw, out)
 }
 
-// Login signs in with e-mail and password. When the server asks for e-mail 2FA the answer has
-// Verified == false and the code must be sent with VerifyCode.
+// Login signs in with e-mail and password.
 func (f *Fxa) Login(ctx context.Context, email, password string) (*LoginResponse, error) {
-	return f.login(ctx, email, password, true, true, "")
+	return f.LoginWithUnblock(ctx, email, password, "")
 }
 
-func (f *Fxa) login(ctx context.Context, email, password string, withVerification, caseRetry bool, originalLoginEmail string) (*LoginResponse, error) {
-	body := map[string]any{"email": email, "authPW": DeriveAuthPW(email, password)}
+// LoginWithUnblock signs in with e-mail, password, and an optional 8-character FxA unblockCode (errno 125).
+func (f *Fxa) LoginWithUnblock(ctx context.Context, email, password, unblockCode string) (*LoginResponse, error) {
+	cleanEmail := NormalizeEmail(email)
+	cleanUnblock := strings.ToUpper(NormalizeCode(unblockCode))
+	return f.login(ctx, cleanEmail, password, true, true, "", cleanUnblock)
+}
+
+func (f *Fxa) login(ctx context.Context, email, password string, withVerification, caseRetry bool, originalLoginEmail, unblockCode string) (*LoginResponse, error) {
+	body := map[string]any{
+		"email":  email,
+		"authPW": DeriveAuthPW(email, password),
+	}
 	if originalLoginEmail != "" {
 		body["originalLoginEmail"] = originalLoginEmail
 	}
 	if withVerification {
 		body["verificationMethod"] = "email-2fa"
 	}
+	if unblockCode != "" {
+		body["unblockCode"] = unblockCode
+	}
 	raw, err := f.do(ctx, "POST", "/account/login", body, "")
 	if err != nil {
 		if e, ok := err.(*FxaAPIError); ok {
-			if e.Errno == 107 && withVerification {
-				return f.login(ctx, email, password, false, caseRetry, originalLoginEmail)
+			if e.Errno == fxaErrnoInvalidParameter && withVerification {
+				return f.login(ctx, email, password, false, caseRetry, originalLoginEmail, unblockCode)
 			}
-			if e.Errno == 120 && caseRetry {
-				if corrected, _ := e.Body["email"].(string); corrected != "" { // wrong e-mail letter case
-					return f.login(ctx, corrected, password, withVerification, false, email)
+			if e.Errno == fxaErrnoIncorrectEmailCase && caseRetry {
+				if corrected, _ := e.Body["email"].(string); corrected != "" {
+					return f.login(ctx, NormalizeEmail(corrected), password, withVerification, false, email, unblockCode)
 				}
 			}
 		}
@@ -330,18 +411,44 @@ func (f *Fxa) login(ctx context.Context, email, password string, withVerificatio
 	return &out, nil
 }
 
-// VerifyCode confirms the e-mail code of a pending sign-in.
+// SendUnblockCode asks FxA to email an 8-character security unblock code (errno 125 recovery).
+func (f *Fxa) SendUnblockCode(ctx context.Context, email string) error {
+	cleanEmail := NormalizeEmail(email)
+	_, err := f.do(ctx, "POST", "/account/login/send_unblock_code", map[string]any{"email": cleanEmail}, "")
+	return err
+}
+
+// ResendVerificationCode asks FxA to resend the session confirmation email code.
+func (f *Fxa) ResendVerificationCode(ctx context.Context, sessionToken string) error {
+	_, err := f.do(ctx, "POST", "/session/resend_code", map[string]any{}, sessionToken)
+	return err
+}
+
+// VerifyCode confirms the e-mail or TOTP 2FA code of a pending sign-in.
 func (f *Fxa) VerifyCode(ctx context.Context, sessionToken, code, verificationMethod string) error {
+	cleanCode := NormalizeCode(code)
 	path := "/session/verify_code"
 	if verificationMethod == "totp-2fa" {
 		path = "/session/verify/totp"
 	}
-	_, err := f.do(ctx, "POST", path, map[string]any{"code": code}, sessionToken)
+	_, err := f.do(ctx, "POST", path, map[string]any{"code": cleanCode}, sessionToken)
 	return err
 }
 
-// OAuthFromSession exchanges a session token for OAuth tokens with the VPN scope. When the edge
-// answers 406 even after solving, the session-authenticated authorization-code route is tried.
+// RecoveryEmailStatus queries GET /recovery_email/status for a sessionToken (used by Browser Sign-in).
+func (f *Fxa) RecoveryEmailStatus(ctx context.Context, sessionToken string) (*RecoveryEmailStatusResponse, error) {
+	raw, err := f.do(ctx, "GET", "/recovery_email/status", nil, sessionToken)
+	if err != nil {
+		return nil, err
+	}
+	var out RecoveryEmailStatusResponse
+	if err := decode(raw, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// OAuthFromSession exchanges a session token for OAuth tokens with the VPN scope.
 func (f *Fxa) OAuthFromSession(ctx context.Context, sessionToken string) (*TokenResponse, error) {
 	raw, err := f.doCall(ctx, "POST", "/oauth/token", map[string]any{
 		"client_id": firefoxClientID, "grant_type": "fxa-credentials",
@@ -356,26 +463,109 @@ func (f *Fxa) OAuthFromSession(ctx context.Context, sessionToken string) (*Token
 	if err := decode(raw, &out); err != nil {
 		return nil, err
 	}
+	out.ClientID = firefoxClientID
 	return &out, nil
 }
 
-// DestroySession closes the temporary FxA session after OAuth credentials have
-// been issued. A caller may treat failure as non-fatal because the OAuth tokens
-// are already independent of this temporary session.
+// ExchangeOAuthAuthorizationCode exchanges a public OAuth + PKCE authorization code for tokens.
+func (f *Fxa) ExchangeOAuthAuthorizationCode(ctx context.Context, clientID, code, verifier string) (*TokenResponse, error) {
+	if clientID == "" {
+		clientID = firefoxPublicOAuthClientID
+	}
+	payload, err := jsonCompact(map[string]string{
+		"client_id":     clientID,
+		"grant_type":    "authorization_code",
+		"code":          code,
+		"code_verifier": verifier,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, err := f.send(ctx, func(c context.Context) (*Response, error) {
+		return f.cp.Request(c, "POST", fxaOAuthTokenURL, oauthHeaders(), payload)
+	}, nil, "", nil)
+	if err != nil {
+		return nil, err
+	}
+	if r.Status >= 400 {
+		return nil, oauthCodeError(r, "OAuth code exchange")
+	}
+	var out TokenResponse
+	if err := decode(r.Body, &out); err != nil {
+		return nil, err
+	}
+	out.ClientID = clientID
+	return &out, nil
+}
+
+// FetchProfileEmail queries Mozilla's profile endpoint for the account email using an OAuth access token.
+func (f *Fxa) FetchProfileEmail(ctx context.Context, accessToken string) string {
+	if strings.TrimSpace(accessToken) == "" {
+		return ""
+	}
+	r, err := f.cp.Request(ctx, "GET", fxaProfileURL, map[string]string{
+		"Accept":        "application/json",
+		"Authorization": "Bearer " + accessToken,
+	}, nil)
+	if err != nil || r.Status != 200 {
+		return ""
+	}
+	var prof struct {
+		Email string `json:"email"`
+	}
+	if json.Unmarshal(r.Body, &prof) != nil {
+		return ""
+	}
+	return NormalizeEmail(prof.Email)
+}
+
+// DestroySession closes the temporary FxA session after OAuth credentials have been issued.
 func (f *Fxa) DestroySession(ctx context.Context, sessionToken string) error {
 	_, err := f.do(ctx, "POST", "/session/destroy", map[string]any{}, sessionToken)
 	return err
 }
 
-// Refresh gets a new access token from a refresh token.
+// Refresh gets a new access token from a refresh token using the default Firefox Desktop client ID.
 func (f *Fxa) Refresh(ctx context.Context, refreshToken string) (*TokenResponse, error) {
+	return f.RefreshWithClient(ctx, refreshToken, firefoxClientID)
+}
+
+// RefreshWithClient gets a new access token using the OAuth client ID that issued refreshToken.
+func (f *Fxa) RefreshWithClient(ctx context.Context, refreshToken, clientID string) (*TokenResponse, error) {
+	if strings.TrimSpace(clientID) == "" {
+		clientID = firefoxClientID
+	}
 	body := map[string]any{
-		"client_id": firefoxClientID, "grant_type": "refresh_token",
-		"refresh_token": refreshToken, "scope": oauthScope}
+		"client_id":     clientID,
+		"grant_type":    "refresh_token",
+		"refresh_token": refreshToken,
+	}
+	if clientID == firefoxClientID {
+		body["scope"] = oauthScope
+	}
 	payload, err := jsonCompact(body)
 	if err != nil {
 		return nil, err
 	}
+	if clientID != firefoxClientID {
+		// Non-desktop public OAuth clients refresh directly against Mozilla's OAuth server.
+		r, err := f.send(ctx, func(c context.Context) (*Response, error) {
+			return f.cp.Request(c, "POST", fxaOAuthTokenURL, oauthHeaders(), payload)
+		}, nil, "", nil)
+		if err != nil {
+			return nil, err
+		}
+		if r.Status >= 400 {
+			return nil, apiErrorFrom(r)
+		}
+		var out TokenResponse
+		if err := decode(r.Body, &out); err != nil {
+			return nil, err
+		}
+		out.ClientID = clientID
+		return &out, nil
+	}
+
 	raw, err := f.doCall(ctx, "POST", "/oauth/token", body, "", true,
 		func(ctx context.Context, solved int, _ string, _ []byte) (*Response, error) {
 			if solved != 0 {
@@ -390,5 +580,6 @@ func (f *Fxa) Refresh(ctx context.Context, refreshToken string) (*TokenResponse,
 	if err := decode(raw, &out); err != nil {
 		return nil, err
 	}
+	out.ClientID = clientID
 	return &out, nil
 }

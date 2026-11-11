@@ -27,7 +27,7 @@ const (
 	openStreamTimeout = 20 * time.Second
 	keepaliveIdle     = 15 * time.Second // ping when nothing was received for this long ...
 	keepaliveTimeout  = 10 * time.Second // ... and drop the tunnel if the ping is not answered
-	passRenewMargin   = 120               // seconds before expiry when a new pass is fetched
+	passRenewMargin   = 120              // seconds before expiry when a new pass is fetched
 )
 
 // TLSOptions controls how the tunnel servers are verified.

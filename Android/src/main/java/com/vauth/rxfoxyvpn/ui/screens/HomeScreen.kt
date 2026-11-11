@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -45,17 +46,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List as ListIcon
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.CompositionLocalProvider
@@ -104,11 +110,14 @@ import androidx.compose.ui.unit.sp
 import com.vauth.rxfoxyvpn.R
 import com.vauth.rxfoxyvpn.RxFoxyVpnApp
 import com.vauth.rxfoxyvpn.data.GUARDIAN_ENDPOINT_DEFAULT
-import com.vauth.rxfoxyvpn.data.GuardianClient
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.formatBytes
 import com.vauth.rxfoxyvpn.data.formatBytesPerSecond
+import com.vauth.rxfoxyvpn.data.manifest.ManifestAnnouncement
+import com.vauth.rxfoxyvpn.data.manifest.ManifestRuntime
 import com.vauth.rxfoxyvpn.data.model.ConnectionState
+import com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState
+import androidx.compose.ui.text.style.TextAlign
 import com.vauth.rxfoxyvpn.vpn.PingUtil
 import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
 import com.vauth.rxfoxyvpn.vpn.tun.HevSocks5Tunnel
@@ -509,17 +518,26 @@ private fun TotalBox(title: String, value: String, icon: ImageVector, tint: Colo
 
 @Composable
 private fun QuotaCard(
-    known: Boolean,
-    remainingBytes: Long,
-    maxBytes: Long,
+    quotaState: SubscriptionQuotaState,
+    initialCheckCompleted: Boolean,
     loading: Boolean,
     onRefresh: () -> Unit,
 ) {
-    // Like the Windows UI: the bar shows what is LEFT of the monthly quota.
-    val target = if (known) (remainingBytes.toFloat() / maxBytes.toFloat()).coerceIn(0f, 1f) else 0f
+    val target = when (quotaState) {
+        is SubscriptionQuotaState.Unlimited -> 1f
+        is SubscriptionQuotaState.Limited ->
+            (quotaState.remainingBytes.toFloat() / quotaState.limitBytes.toFloat()).coerceIn(0f, 1f)
+        is SubscriptionQuotaState.Error,
+        is SubscriptionQuotaState.Unknown -> 0f
+    }
     val fraction by animateFloatAsState(target, tween(700), label = "quota-fill")
+    val isError = quotaState is SubscriptionQuotaState.Error
+    val isUnlimited = quotaState is SubscriptionQuotaState.Unlimited
 
-    Glass(Modifier.fillMaxWidth()) {
+    Glass(
+        modifier = Modifier.fillMaxWidth(),
+        border = if (isError) Rx.Bad.copy(alpha = 0.35f) else Rx.Line,
+    ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 12.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -550,8 +568,22 @@ private fun QuotaCard(
                     }
                 }
                 Text(
-                    text = if (known) "${gbText(remainingBytes)} GB" else "—",
-                    color = Rx.Text, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp,
+                    text = when (quotaState) {
+                        is SubscriptionQuotaState.Unlimited ->
+                            LanguageManager.t("quota_unlimited", "نامحدود ∞")
+                        is SubscriptionQuotaState.Limited ->
+                            "${gbText(quotaState.remainingBytes)} GB"
+                        is SubscriptionQuotaState.Error ->
+                            LanguageManager.t("quota_error_short", "خطا")
+                        is SubscriptionQuotaState.Unknown -> "—"
+                    },
+                    color = when {
+                        isUnlimited -> Rx.Good
+                        isError -> Rx.Bad
+                        else -> Rx.Text
+                    },
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = if (isError) 15.sp else 17.sp,
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -561,7 +593,7 @@ private fun QuotaCard(
                     .height(10.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF080A20).copy(alpha = 0.8f))
-                    .border(1.dp, Rx.Line, CircleShape)
+                    .border(1.dp, if (isError) Rx.Bad.copy(alpha = 0.35f) else Rx.Line, CircleShape)
             ) {
                 Box(
                     Modifier
@@ -572,25 +604,181 @@ private fun QuotaCard(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val leftStatusText = when (quotaState) {
+                    is SubscriptionQuotaState.Unlimited ->
+                        LanguageManager.t("quota_unlimited_desc", "نامحدود ∞ · اشتراک بدون محدودیت حجمی")
+                    is SubscriptionQuotaState.Limited ->
+                        fill(
+                            LanguageManager.t("quota_used", "مصرف‌شده: {n} GB · آخرین گزارش"),
+                            gbText(quotaState.usedBytes),
+                        )
+                    is SubscriptionQuotaState.Error ->
+                        LanguageManager.t("quota_fetch_error", "خطا در دریافت اطلاعات اشتراک")
+                    is SubscriptionQuotaState.Unknown -> {
+                        if (!initialCheckCompleted && loading) {
+                            LanguageManager.t("quota_loading", "در حال بررسی وضعیت اشتراک…")
+                        } else {
+                            LanguageManager.t("quota_status_unknown", "وضعیت حجم اشتراک نامشخص است")
+                        }
+                    }
+                }
+                val rightStatusText = when (quotaState) {
+                    is SubscriptionQuotaState.Unlimited ->
+                        LanguageManager.t("quota_no_cap", "بدون سقف مصرف")
+                    is SubscriptionQuotaState.Limited ->
+                        fill(LanguageManager.t("quota_total", "از {n} GB"), gbText(quotaState.limitBytes))
+                    is SubscriptionQuotaState.Error ->
+                        LanguageManager.t("quota_tap_retry", "بروزرسانی کنید")
+                    is SubscriptionQuotaState.Unknown -> {
+                        if (!initialCheckCompleted && loading) {
+                            ""
+                        } else {
+                            LanguageManager.t("quota_insufficient", "داده کافی دریافت نشد")
+                        }
+                    }
+                }
                 Text(
-                    text = if (known) {
-                        fill(LanguageManager.t("quota_used", "مصرف‌شده: {n} GB · آخرین گزارش"), gbText(maxBytes - remainingBytes))
-                    } else {
-                        LanguageManager.t("quota_unknown", "اطلاعات سهمیه هنوز دریافت نشده")
+                    text = leftStatusText,
+                    color = when {
+                        isUnlimited -> Rx.Good.copy(alpha = 0.92f)
+                        isError -> Rx.Bad
+                        else -> Rx.Mute
                     },
-                    color = Rx.Mute, fontSize = 12.sp,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-                Text(
-                    text = if (known) {
-                        fill(LanguageManager.t("quota_total", "از {n} GB"), gbText(maxBytes))
-                    } else {
-                        LanguageManager.t("quota_total_unknown", "از سقف ماهانه")
-                    },
-                    color = Rx.Mute, fontSize = 12.sp,
-                )
+                if (rightStatusText.isNotEmpty()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = rightStatusText,
+                        color = Rx.Mute,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun UserAnnouncementDialog(
+    announcement: ManifestAnnouncement,
+    queueIndex: Int,
+    queueTotal: Int,
+    onAcknowledge: () -> Unit,
+) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        AlertDialog(
+            onDismissRequest = { /* Persisted strictly when the user clicks «متوجه شدم» */ },
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+            containerColor = Rx.PanelS,
+            shape = RoundedCornerShape(24.dp),
+            titleContentColor = Rx.Text,
+            textContentColor = Rx.Text,
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Rx.Violet.copy(alpha = 0.30f), Rx.Cyan.copy(alpha = 0.25f))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Default.Campaign,
+                                contentDescription = null,
+                                tint = Rx.Cyan,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = announcement.title,
+                            color = Rx.Text,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            textAlign = TextAlign.Start,
+                        )
+                    }
+                    if (queueTotal > 1) {
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Rx.Panel2)
+                                .border(1.dp, Rx.Line2, CircleShape)
+                                .padding(horizontal = 9.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "$queueIndex / $queueTotal",
+                                color = Rx.Cyan,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(
+                        text = announcement.message,
+                        color = Rx.Text.copy(alpha = 0.92f),
+                        fontSize = 14.sp,
+                        lineHeight = 23.sp,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onAcknowledge,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Rx.Violet,
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = "متوجه شدم",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 3.dp),
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -765,10 +953,25 @@ fun HomeScreen(
     var rxRate by remember { mutableLongStateOf(if (alreadyConnected) ConnectionSession.rxRate else 0L) }
     var connectedSeconds by remember { mutableLongStateOf(if (alreadyConnected) ConnectionSession.elapsedSeconds() else 0L) }
 
-    // Quota from the Guardian API (no fake defaults — unknown stays unknown, like on Windows)
-    var quotaMaxBytes by remember { mutableStateOf<Long?>(null) }
-    var quotaRemainingBytes by remember { mutableStateOf<Long?>(null) }
+    // Quota from the Guardian API: explicitly distinguishes Unlimited, Limited, Error, and Unknown.
+    var quotaState by remember { mutableStateOf<SubscriptionQuotaState>(SubscriptionQuotaState.Unknown) }
+    var initialQuotaCheckDone by remember { mutableStateOf(false) }
     var isQuotaLoading by remember { mutableStateOf(false) }
+
+    // Remote Manifest announcements (checked non-blockingly on entering HomeScreen)
+    val remoteManifest by ManifestRuntime.repository.manifestFlow.collectAsState()
+    val acknowledgedAnnouncementIds by ManifestRuntime.announcements.acknowledgedIds.collectAsState()
+    val pendingAnnouncements = remember(remoteManifest, acknowledgedAnnouncementIds) {
+        ManifestRuntime.announcements.pendingAnnouncements(remoteManifest, acknowledgedAnnouncementIds)
+    }
+    var initialAnnouncementCount by remember { mutableStateOf(0) }
+    LaunchedEffect(pendingAnnouncements.size) {
+        if (pendingAnnouncements.isEmpty()) {
+            initialAnnouncementCount = 0
+        } else if (pendingAnnouncements.size > initialAnnouncementCount) {
+            initialAnnouncementCount = pendingAnnouncements.size
+        }
+    }
 
     // Ping
     var serverPingMs by remember { mutableStateOf<Int?>(null) }
@@ -778,20 +981,28 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
 
     fun fetchRealQuota() {
+        if (isQuotaLoading) return
         isQuotaLoading = true
         scope.launch(Dispatchers.IO) {
-            val token = app.authRepository.currentAccessToken()
-            if (token != null) {
-                runCatching {
-                    GuardianClient().fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, token)
-                }.onSuccess { info ->
-                    withContext(Dispatchers.Main) {
-                        quotaMaxBytes = info.maxBytes
-                        quotaRemainingBytes = info.quotaRemaining
-                    }
+            val resolvedState: SubscriptionQuotaState = try {
+                val token = app.authRepository.currentAccessToken()
+                if (token.isNullOrBlank()) {
+                    SubscriptionQuotaState.Error(
+                        LanguageManager.t("quota_fetch_error", "خطا در دریافت اطلاعات اشتراک")
+                    )
+                } else {
+                    val info = app.guardianClient.fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, token)
+                    info.quotaState
                 }
+            } catch (e: Exception) {
+                SubscriptionQuotaState.Error(
+                    e.message?.takeIf { it.isNotBlank() }
+                        ?: LanguageManager.t("quota_fetch_error", "خطا در دریافت اطلاعات اشتراک")
+                )
             }
             withContext(Dispatchers.Main) {
+                quotaState = resolvedState
+                initialQuotaCheckDone = true
                 isQuotaLoading = false
             }
         }
@@ -812,6 +1023,9 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         fetchRealQuota()
+        launch(Dispatchers.IO) {
+            ManifestRuntime.repository.refresh(force = false)
+        }
     }
 
     LaunchedEffect(selectedProxy) {
@@ -869,14 +1083,24 @@ fun HomeScreen(
     val seconds = connectedSeconds % 60
     val uptimeFormatted = String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds)
 
-    val qMax = quotaMaxBytes
-    val qRem = quotaRemainingBytes
-    val quotaKnown = qMax != null && qRem != null && qMax > 0L && qRem in 0L..qMax
-
     val flagCode = selectedProxy?.countryCode ?: ""
     val countryName = selectedProxy?.let { proxy ->
         LanguageManager.getCountryName(proxy.countryCode, proxy.countryName.ifBlank { proxy.countryCode })
     } ?: "—"
+
+    val activeAnnouncement = pendingAnnouncements.firstOrNull()
+    if (activeAnnouncement != null) {
+        val totalToDisplay = initialAnnouncementCount.coerceAtLeast(pendingAnnouncements.size)
+        val currentIndex = (totalToDisplay - pendingAnnouncements.size + 1).coerceAtLeast(1)
+        UserAnnouncementDialog(
+            announcement = activeAnnouncement,
+            queueIndex = currentIndex,
+            queueTotal = totalToDisplay,
+            onAcknowledge = {
+                ManifestRuntime.announcements.acknowledge(activeAnnouncement.id)
+            },
+        )
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -1034,9 +1258,8 @@ fun HomeScreen(
 
                     // ---------- Monthly quota ----------
                     QuotaCard(
-                        known = quotaKnown,
-                        remainingBytes = qRem ?: 0L,
-                        maxBytes = qMax ?: 0L,
+                        quotaState = quotaState,
+                        initialCheckCompleted = initialQuotaCheckDone,
                         loading = isQuotaLoading,
                         onRefresh = { fetchRealQuota() },
                     )

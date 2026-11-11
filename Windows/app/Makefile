@@ -15,4 +15,4 @@ fmt:
 	gofmt -l -w .
 
 build-windows:
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-H windowsgui -s -w" -o dist/RXFOXYVPN.exe ./cmd/rxvpn
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -tags "http2legacy,embedruntime" -trimpath -ldflags "-H windowsgui -s -w" -o dist/RXFOXYVPN.exe ./cmd/rxvpn

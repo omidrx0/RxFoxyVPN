@@ -2,39 +2,87 @@ package com.vauth.rxfoxyvpn.data
 
 import com.vauth.rxfoxyvpn.data.model.RuntimeAuth
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.Call
 import okhttp3.Callback
-import java.io.IOException
-import java.util.Base64
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.Base64
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private const val TAG = "FxaAuthRepository"
 
 enum class LoginStep { CREDENTIALS, TWO_FACTOR }
 
+/** Progress of a Browser Sign-in after the Mozilla page handed over its session (shown to the user). */
+enum class BrowserLoginStage { CHECKING, WAITING_FOR_CONFIRMATION, GETTING_TOKENS }
+
 enum class SessionStatus {
     ACTIVE,
     NEEDS_LOGIN,
     UNREACHABLE,
+}
+
+/**
+ * UI state for an active Direct Login Fastly CAPTCHA challenge.
+ * Keyed by [promptId] so replacing the image on Refresh or Wrong Answer cleanly releases the previous image.
+ */
+data class CaptchaPromptUiState(
+    val promptId: Long,
+    val imageBytes: ByteArray,
+    val mimeType: String,
+    val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val notice: CaptchaNoticeKind? = null,
+    val validationError: String? = null,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is CaptchaPromptUiState) return false
+        return promptId == other.promptId &&
+            imageBytes.contentEquals(other.imageBytes) &&
+            mimeType == other.mimeType &&
+            isRefreshing == other.isRefreshing &&
+            isSubmitting == other.isSubmitting &&
+            notice == other.notice &&
+            validationError == other.validationError
+    }
+
+    override fun hashCode(): Int {
+        var result = promptId.hashCode()
+        result = 31 * result + imageBytes.contentHashCode()
+        result = 31 * result + mimeType.hashCode()
+        result = 31 * result + isRefreshing.hashCode()
+        result = 31 * result + isSubmitting.hashCode()
+        result = 31 * result + (notice?.hashCode() ?: 0)
+        result = 31 * result + (validationError?.hashCode() ?: 0)
+        return result
+    }
 }
 
 /** Fastly's bot check refused the call for good (unsolvable challenge, or 406 persisted). Not an FxA API error. */
@@ -57,8 +105,18 @@ private const val STRETCHED_PW_LEN = 32
 private const val HKDF_LEN = 32
 private const val VERIFICATION_METHOD_EMAIL_2FA = "email-2fa"
 private const val FXA_ERRNO_INVALID_PARAMETER = 107
+private const val FXA_ERRNO_UNVERIFIED_ACCOUNT = 104
+private const val FXA_ERRNO_UNVERIFIED_SESSION = 138
+private const val FXA_ERRNO_THROTTLED = 114
+private const val FXA_ERRNO_SERVICE_UNAVAILABLE = 201
+// Browser Sign-in: the Mozilla page hands over the session before the person has entered any email / authenticator
+// code, so the session is followed until Mozilla reports it confirmed (reference: signin_flow.go waitSessionConfirmed).
+private const val BROWSER_CONFIRM_TIMEOUT_MS = 15 * 60_000L
+private const val BROWSER_POLL_MS = 3_000L
+private const val BROWSER_EXCHANGE_ATTEMPTS = 10
 private const val FXA_MAX_CHALLENGE_ATTEMPTS = 5
 private const val FXA_CHALLENGE_BUDGET_MS = 90_000L
+private const val INTERACTIVE_FXA_CHALLENGE_BUDGET_MS = 12 * 60_000L
 private const val FXA_OAUTH_TOKEN_URL = "https://oauth.accounts.firefox.com/v1/token"
 private const val DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60
 
@@ -68,20 +126,155 @@ private val oauthJsonMediaType = "application/json; charset=utf-8".toMediaType()
 private const val FXA_OAUTH_AUTHORIZE_PATH = "/oauth/authorization"
 
 class FxaAuthRepository(
-    private val tokenStore: TokenStore,
+    private val authStore: AuthPersistence,
     private val challengeSolver: FastlyChallengeSolver = FastlyChallengeSolver(ControlPlaneHttp.cookieJar),
+    private val httpClientProvider: () -> OkHttpClient = { ControlPlaneHttp.client },
+    private val cookieJar: SimpleCookieJar = ControlPlaneHttp.cookieJar,
+    private val authServerUrl: String = FXA_AUTH_SERVER,
+    private val oauthTokenUrl: String = FXA_OAUTH_TOKEN_URL,
 ) {
+    constructor(
+        tokenStore: TokenStore,
+        challengeSolver: FastlyChallengeSolver = FastlyChallengeSolver(ControlPlaneHttp.cookieJar),
+    ) : this(
+        authStore = tokenStore,
+        challengeSolver = challengeSolver,
+    )
+
     private var pendingSessionToken: String? = null
     private var pendingVerificationMethod: String = "email-2fa"
 
-    suspend fun startLogin(email: String, password: String): Result<Boolean> = runCatching {
+    @Volatile
+    private var lastInteractiveEmail: String? = null
+
+    private val captchaPromptCounter = AtomicLong(0L)
+    private val _captchaPrompt = MutableStateFlow<CaptchaPromptUiState?>(null)
+    val captchaPrompt: StateFlow<CaptchaPromptUiState?> = _captchaPrompt.asStateFlow()
+
+    @Volatile
+    private var activeCaptchaDeferred: CompletableDeferred<CaptchaUserAction>? = null
+
+    /**
+     * Submits the user's manually entered CAPTCHA answer into the suspended Direct Login session.
+     */
+    fun submitCaptchaAnswer(answer: String) {
+        val trimmed = answer.trim()
+        if (trimmed.isEmpty()) {
+            _captchaPrompt.update { state ->
+                state?.copy(
+                    validationError = LanguageManager.t(
+                        "captcha_empty_err",
+                        "لطفاً کاراکترهای تصویر امنیتی را وارد کنید.",
+                    )
+                )
+            }
+            return
+        }
+        val deferred = activeCaptchaDeferred ?: return
+        _captchaPrompt.update { state ->
+            state?.copy(isSubmitting = true, notice = null, validationError = null)
+        }
+        deferred.complete(CaptchaUserAction.Submit(trimmed))
+    }
+
+    /**
+     * Requests a fresh CAPTCHA image within the current Direct Login flow, replacing the previous image.
+     */
+    fun refreshCaptcha() {
+        val deferred = activeCaptchaDeferred ?: return
+        _captchaPrompt.update { state ->
+            state?.copy(isRefreshing = true, notice = null, validationError = null)
+        }
+        deferred.complete(CaptchaUserAction.Refresh)
+    }
+
+    /**
+     * Cancels the active CAPTCHA prompt and cleans up temporary image/session state.
+     */
+    fun cancelCaptcha() {
+        val deferred = activeCaptchaDeferred
+        activeCaptchaDeferred = null
+        _captchaPrompt.value = null
+        deferred?.complete(CaptchaUserAction.Cancel)
+    }
+
+    /**
+     * Clears stored credentials, pending Direct Login state, temporary CAPTCHA state, and
+     * shared FxA cookies so signing out or switching accounts never leaks session data.
+     */
+    fun signOut() {
+        cancelCaptcha()
+        pendingSessionToken = null
+        pendingVerificationMethod = "email-2fa"
+        lastInteractiveEmail = null
+        runCatching { authStore.clear() }
+        runCatching { cookieJar.clear() }
+    }
+
+    private suspend fun <T> withInteractiveCaptcha(block: suspend (CaptchaSessionHandler) -> T): Result<T> {
+        // Cancel any lingering previous prompt before starting a new interactive step.
+        activeCaptchaDeferred?.complete(CaptchaUserAction.Cancel)
+        activeCaptchaDeferred = null
+        _captchaPrompt.value = null
+
+        val handler = CaptchaSessionHandler { payload ->
+            val deferred = CompletableDeferred<CaptchaUserAction>()
+            activeCaptchaDeferred = deferred
+            val promptId = captchaPromptCounter.incrementAndGet()
+            _captchaPrompt.value = CaptchaPromptUiState(
+                promptId = promptId,
+                imageBytes = payload.imageBytes,
+                mimeType = payload.mimeType,
+                isRefreshing = false,
+                isSubmitting = false,
+                notice = payload.notice,
+                validationError = null,
+            )
+            try {
+                deferred.await()
+            } finally {
+                if (activeCaptchaDeferred === deferred) {
+                    activeCaptchaDeferred = null
+                }
+            }
+        }
+
+        return try {
+            Result.success(block(handler))
+        } catch (userCancelled: CaptchaCancelledException) {
+            Result.failure(userCancelled)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            activeCaptchaDeferred?.cancel()
+            activeCaptchaDeferred = null
+            _captchaPrompt.value = null
+        }
+    }
+
+    suspend fun startLogin(email: String, password: String): Result<Boolean> = withInteractiveCaptcha { captchaHandler ->
         val normalizedEmail = normalizeEmail(email)
+        val previousEmail = lastInteractiveEmail
+        if (previousEmail != null && !previousEmail.equals(normalizedEmail, ignoreCase = true)) {
+            // Isolate cookies and session state when a different user signs in on the same device.
+            pendingSessionToken = null
+            cookieJar.clear()
+        }
+        lastInteractiveEmail = normalizedEmail
+
         val data = try {
-            loginAttempt(normalizedEmail, password)
+            loginAttempt(normalizedEmail, password, captchaHandler = captchaHandler)
         } catch (caseError: FxaApiError) {
             val correctedEmail = caseError.accountEmail
             if (caseError.errno == 120 && !correctedEmail.isNullOrBlank() && correctedEmail != normalizedEmail) {
-                loginAttempt(correctedEmail, password, originalEmail = normalizedEmail)
+                loginAttempt(
+                    correctedEmail,
+                    password,
+                    originalEmail = normalizedEmail,
+                    captchaHandler = captchaHandler,
+                )
             } else {
                 throw caseError
             }
@@ -93,12 +286,12 @@ class FxaAuthRepository(
         if (!verified) {
             true
         } else {
-            completeLogin(sessionToken)
+            completeLogin(sessionToken, captchaHandler = captchaHandler)
             false
         }
     }
 
-    suspend fun submitTwoFactorCode(code: String): Result<Boolean> = runCatching {
+    suspend fun submitTwoFactorCode(code: String): Result<Boolean> = withInteractiveCaptcha { captchaHandler ->
         val sessionToken = pendingSessionToken ?: error("No pending FxA session. Start sign-in again.")
         val verifyPath = if (pendingVerificationMethod == "totp-2fa") {
             "/session/verify/totp"
@@ -110,19 +303,78 @@ class FxaAuthRepository(
             verifyPath,
             sessionToken = sessionToken,
             jsonBody = JSONObject().put("code", normalizeCode(code)),
+            captchaHandler = captchaHandler,
         )
-        completeLogin(sessionToken)
+        completeLogin(sessionToken, captchaHandler = captchaHandler)
+        false
+    }
+
+    /**
+     * Browser Sign-in entry point. [sessionToken] is the 64-hex session captured from Mozilla's own sign-in page
+     * (see [FxaWebChannel]); the person types the password, CAPTCHA and any email / authenticator code on that page.
+     */
+    suspend fun completeBrowserLogin(
+        sessionToken: String,
+        onStage: (BrowserLoginStage) -> Unit = {},
+    ): Result<Unit> = try {
+        require(FxaWebChannel.isValidSessionToken(sessionToken)) { "Mozilla returned an invalid session" }
+        onStage(BrowserLoginStage.CHECKING)
+        var announced = false
+        try {
+            withTimeout(BROWSER_CONFIRM_TIMEOUT_MS) {
+                while (!isBrowserSessionVerified(sessionToken)) {
+                    if (!announced) {
+                        announced = true
+                        onStage(BrowserLoginStage.WAITING_FOR_CONFIRMATION)
+                    }
+                    delay(BROWSER_POLL_MS)
+                }
+            }
+        } catch (timeout: TimeoutCancellationException) {
+            throw FxaApiError("Timed out waiting for Mozilla to confirm the sign-in", null, null)
+        }
+        onStage(BrowserLoginStage.GETTING_TOKENS)
+        var attempt = 0
+        while (true) {
+            try {
+                completeLogin(sessionToken)
+                break
+            } catch (e: FxaApiError) {
+                val unverified = e.errno == FXA_ERRNO_UNVERIFIED_ACCOUNT || e.errno == FXA_ERRNO_UNVERIFIED_SESSION
+                if (unverified && ++attempt < BROWSER_EXCHANGE_ATTEMPTS) delay(BROWSER_POLL_MS) else throw e
+            }
+        }
+        Result.success(Unit)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        Result.failure(failure)
+    }
+
+    private suspend fun isBrowserSessionVerified(sessionToken: String): Boolean = try {
+        fxaDo("GET", "/recovery_email/status", sessionToken = sessionToken, jsonBody = JSONObject())
+            .optBoolean("verified", false)
+    } catch (e: FxaApiError) {
+        val errno = e.errno ?: 0
+        if (errno == 0 || errno == FXA_ERRNO_THROTTLED || errno == FXA_ERRNO_SERVICE_UNAVAILABLE) {
+            AppLogger.i(TAG, "session status could not be read yet (HTTP ${e.statusCode}); asking again")
+            false
+        } else {
+            throw e
+        }
+    } catch (e: IOException) {
+        AppLogger.i(TAG, "session status request failed (${e::class.java.simpleName}); asking again")
         false
     }
 
     suspend fun restoreSession(): SessionStatus {
-        val stored = runCatching { tokenStore.loadAuth() }.getOrNull()
+        val stored = runCatching { authStore.loadAuth() }.getOrNull()
             ?: return SessionStatus.NEEDS_LOGIN
-        if (stored.refreshToken == null && !tokenStore.hasValidAccessToken()) {
-            runCatching { tokenStore.clear() }
+        if (stored.refreshToken == null && !authStore.hasValidAccessToken()) {
+            runCatching { authStore.clear() }
             return SessionStatus.NEEDS_LOGIN
         }
-        if (tokenStore.hasValidAccessToken()) return SessionStatus.ACTIVE
+        if (authStore.hasValidAccessToken()) return SessionStatus.ACTIVE
 
         return try {
             ensureFreshAccessToken()
@@ -131,23 +383,23 @@ class FxaAuthRepository(
             throw cancellation
         } catch (failure: FxaRefreshFailure) {
             if (failure.permanent) {
-                AppLogger.w(TAG, "FxA rejected the stored session; signing out", failure)
-                runCatching { tokenStore.clear() }
+                AppLogger.w(TAG, "FxA rejected the stored session; signing out")
+                runCatching { authStore.clear() }
                 SessionStatus.NEEDS_LOGIN
             } else {
-                AppLogger.w(TAG, "could not renew the session right now; staying signed in", failure)
+                AppLogger.w(TAG, "could not renew the session right now; staying signed in")
                 SessionStatus.UNREACHABLE
             }
         } catch (unexpected: Exception) {
-            AppLogger.w(TAG, "unexpected error while restoring the session", unexpected)
+            AppLogger.w(TAG, "unexpected error while restoring the session")
             SessionStatus.UNREACHABLE
         }
     }
 
     suspend fun ensureFreshAccessToken(force: Boolean = false): RuntimeAuth {
-        val current = tokenStore.loadAuth()
+        val current = authStore.loadAuth()
             ?: throw FxaRefreshFailure("Not signed in", permanent = true)
-        if (!force && tokenStore.hasValidAccessToken()) return current
+        if (!force && authStore.hasValidAccessToken()) return current
 
         val refreshToken = current.refreshToken
             ?: throw FxaRefreshFailure(
@@ -191,8 +443,8 @@ class FxaAuthRepository(
             refreshToken = tokenData.optString("refresh_token", "").ifBlank { null } ?: refreshToken,
             expiresAtEpochSeconds = expiryFrom(tokenData),
         )
-        runCatching { tokenStore.saveAuth(renewed) }
-            .onFailure { AppLogger.w(TAG, "could not persist the renewed token", it) }
+        runCatching { authStore.saveAuth(renewed) }
+            .onFailure { AppLogger.w(TAG, "could not persist the renewed token") }
         return renewed
     }
 
@@ -201,15 +453,15 @@ class FxaAuthRepository(
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (failure: FxaRefreshFailure) {
-        if (failure.permanent) null else tokenStore.loadAuth()?.accessToken
+        if (failure.permanent) null else authStore.loadAuth()?.accessToken
     }
 
     suspend fun refreshAccessToken(): RuntimeAuth? = try {
         ensureFreshAccessToken(force = true)
     } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (failure: FxaRefreshFailure) {
-        AppLogger.w(TAG, "access token renewal failed", failure)
+    } catch (_: FxaRefreshFailure) {
+        AppLogger.w(TAG, "access token renewal failed")
         null
     }
 
@@ -223,9 +475,12 @@ class FxaAuthRepository(
         return System.currentTimeMillis() / 1000 + expiresIn
     }
 
-    private suspend fun completeLogin(sessionToken: String) {
-        val tokenData = oauthToken(sessionToken)
-        tokenStore.saveAuth(
+    private suspend fun completeLogin(
+        sessionToken: String,
+        captchaHandler: CaptchaSessionHandler? = null,
+    ) {
+        val tokenData = oauthToken(sessionToken, captchaHandler = captchaHandler)
+        authStore.saveAuth(
             RuntimeAuth(
                 accessToken = tokenData.getString("access_token"),
                 refreshToken = tokenData.optString("refresh_token", "").ifBlank { null },
@@ -247,6 +502,7 @@ class FxaAuthRepository(
         originalEmail: String? = null,
         unblockCode: String? = null,
         withVerificationMethod: Boolean = true,
+        captchaHandler: CaptchaSessionHandler? = null,
     ): JSONObject {
         val body = JSONObject().apply {
             put("email", email)
@@ -256,10 +512,17 @@ class FxaAuthRepository(
             if (withVerificationMethod) put("verificationMethod", VERIFICATION_METHOD_EMAIL_2FA)
         }
         return try {
-            fxaDo("POST", "/account/login", jsonBody = body)
+            fxaDo("POST", "/account/login", jsonBody = body, captchaHandler = captchaHandler)
         } catch (e: FxaApiError) {
             if (e.errno == FXA_ERRNO_INVALID_PARAMETER && withVerificationMethod) {
-                loginAttempt(email, password, originalEmail, unblockCode, withVerificationMethod = false)
+                loginAttempt(
+                    email = email,
+                    password = password,
+                    originalEmail = originalEmail,
+                    unblockCode = unblockCode,
+                    withVerificationMethod = false,
+                    captchaHandler = captchaHandler,
+                )
             } else {
                 throw e
             }
@@ -267,50 +530,65 @@ class FxaAuthRepository(
     }
 
     /** Request the email containing FxA's unblock code after errno 125. */
-    suspend fun sendUnblockCode(email: String): Result<Unit> = runCatching {
+    suspend fun sendUnblockCode(email: String): Result<Unit> = withInteractiveCaptcha { captchaHandler ->
         fxaDo(
             "POST",
             "/account/login/send_unblock_code",
             jsonBody = JSONObject().put("email", normalizeEmail(email)),
+            captchaHandler = captchaHandler,
         )
+        Unit
     }
 
     /** Retry a blocked sign-in with the code sent by Firefox Accounts. */
-    suspend fun startLoginWithUnblockCode(email: String, password: String, code: String): Result<Boolean> = runCatching {
-        val normalizedEmail = normalizeEmail(email)
-        val normalizedCode = normalizeCode(code).uppercase(Locale.ROOT)
-        val data = try {
-            loginAttempt(normalizedEmail, password, unblockCode = normalizedCode)
-        } catch (caseError: FxaApiError) {
-            val correctedEmail = caseError.accountEmail
-            if (caseError.errno == 120 && !correctedEmail.isNullOrBlank() && correctedEmail != normalizedEmail) {
-                loginAttempt(
-                    correctedEmail,
-                    password,
-                    originalEmail = normalizedEmail,
-                    unblockCode = normalizedCode,
-                )
-            } else {
-                throw caseError
+    suspend fun startLoginWithUnblockCode(email: String, password: String, code: String): Result<Boolean> =
+        withInteractiveCaptcha { captchaHandler ->
+            val normalizedEmail = normalizeEmail(email)
+            val normalizedCode = normalizeCode(code).uppercase(Locale.ROOT)
+            val data = try {
+                loginAttempt(normalizedEmail, password, unblockCode = normalizedCode, captchaHandler = captchaHandler)
+            } catch (caseError: FxaApiError) {
+                val correctedEmail = caseError.accountEmail
+                if (caseError.errno == 120 && !correctedEmail.isNullOrBlank() && correctedEmail != normalizedEmail) {
+                    loginAttempt(
+                        correctedEmail,
+                        password,
+                        originalEmail = normalizedEmail,
+                        unblockCode = normalizedCode,
+                        captchaHandler = captchaHandler,
+                    )
+                } else {
+                    throw caseError
+                }
+            }
+            val sessionToken = data.getString("sessionToken")
+            pendingSessionToken = sessionToken
+            pendingVerificationMethod = data.optString("verificationMethod", "email-2fa")
+            if (!data.optBoolean("verified", false)) true else {
+                completeLogin(sessionToken, captchaHandler = captchaHandler)
+                false
             }
         }
-        val sessionToken = data.getString("sessionToken")
-        pendingSessionToken = sessionToken
-        pendingVerificationMethod = data.optString("verificationMethod", "email-2fa")
-        if (!data.optBoolean("verified", false)) true else {
-            completeLogin(sessionToken)
-            false
-        }
-    }
 
-    private suspend fun oauthToken(sessionToken: String): JSONObject {
+    private suspend fun oauthToken(
+        sessionToken: String,
+        captchaHandler: CaptchaSessionHandler? = null,
+    ): JSONObject {
         val body = JSONObject().apply {
             put("client_id", FIREFOX_CLIENT_ID)
             put("grant_type", "fxa-credentials")
             put("scope", OAUTH_SCOPE)
             put("access_type", "offline")
         }
-        return fxaDo("POST", "/oauth/token", sessionToken = sessionToken, jsonBody = body, oauthProfile = true, oauthCodeFallback = true)
+        return fxaDo(
+            "POST",
+            "/oauth/token",
+            sessionToken = sessionToken,
+            jsonBody = body,
+            oauthProfile = true,
+            oauthCodeFallback = true,
+            captchaHandler = captchaHandler,
+        )
     }
 
     private suspend fun fxaDo(
@@ -321,9 +599,10 @@ class FxaAuthRepository(
         oauthProfile: Boolean = false,
         oauthCodeFallback: Boolean = false,
         refreshFallback: Boolean = false,
+        captchaHandler: CaptchaSessionHandler? = null,
     ): JSONObject {
-        val url = "$FXA_AUTH_SERVER$path".toHttpUrl()
-        val bodyBytes = jsonBody.toString().toByteArray(Charsets.UTF_8)
+        val url = "${authServerUrl.trimEnd('/')}$path".toHttpUrl()
+        val bodyBytes = if (method == "GET") ByteArray(0) else jsonBody.toString().toByteArray(Charsets.UTF_8)
         val hawk: Pair<String, ByteArray>? = sessionToken?.let { deriveHawkCredentials(it) }
 
         // Rebuilt for every attempt: fresh HAWK nonce/timestamp each time.
@@ -336,14 +615,14 @@ class FxaAuthRepository(
             on406 = { solved -> if (solved == 0) refreshAtOAuthEndpoint(bodyBytes) else null }
         }
 
-        val response = sendWith406Recovery(newRequest, on406)
+        val response = sendWith406Recovery(newRequest, on406, captchaHandler)
         return withContext(Dispatchers.IO) {
             response.use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (resp.code >= 400) {
                     val errorBody = try {
                         JSONObject(text)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         JSONObject()
                     }
                     val errno = if (errorBody.has("errno")) errorBody.optInt("errno") else null
@@ -366,26 +645,32 @@ class FxaAuthRepository(
         val builder = Request.Builder().url(url).applyMozillaVpnHeaders()
         if (oauthProfile) builder.applyOAuthProfileHeaders()
         if (hawk != null) builder.header("Authorization", hawkHeader(method, url, hawk.first, hawk.second, bodyBytes))
+        if (method == "GET" || method == "HEAD") return builder.method(method, null).build()
         return builder.method(method, bodyBytes.toRequestBody(if (oauthProfile) oauthJsonMediaType else jsonMediaType)).build()
     }
 
     /**
      * Mirrors the reference client's fxaDoWith406Fallback: send; on HTTP 406 (Fastly's bot check)
-     * run the optional alternate request, otherwise solve the challenge and resend, bounded by
-     * FXA_MAX_CHALLENGE_ATTEMPTS and one overall budget. Cancellation is honoured (the in-flight
-     * call is cancelled) and every 406 body is closed before the next attempt.
+     * run the optional alternate request, otherwise solve the challenge (including interactive
+     * CAPTCHA when [captchaHandler] is present) and resend on the same cookie jar and session.
      */
     private suspend fun sendWith406Recovery(
         newRequest: () -> Request,
         on406: (suspend (Int) -> Response?)?,
+        captchaHandler: CaptchaSessionHandler?,
     ): Response {
-        val client = ControlPlaneHttp.client
+        val client = httpClientProvider()
         val first = client.newCall(newRequest()).awaitResponse()
         if (first.code != 406) return first
         first.close()
         AppLogger.i(TAG, "account server answered HTTP 406 (Fastly bot check); starting recovery")
+        val budgetMs = if (captchaHandler != null) {
+            INTERACTIVE_FXA_CHALLENGE_BUDGET_MS
+        } else {
+            FXA_CHALLENGE_BUDGET_MS
+        }
         return try {
-            withTimeout(FXA_CHALLENGE_BUDGET_MS) {
+            withTimeout(budgetMs) {
                 var solved = 0
                 var result: Response? = null
                 while (result == null) {
@@ -398,9 +683,14 @@ class FxaAuthRepository(
                         throw FxaChallengeBlocked("Mozilla's security check still answers HTTP 406 after $solved solved challenges")
                     }
                     try {
-                        challengeSolver.solveAndInstall()
+                        challengeSolver.solveAndInstall(captchaHandler)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
                     } catch (e: FastlyChallengeError) {
-                        throw FxaChallengeBlocked("Mozilla's security challenge failed: ${e.message}", e)
+                        throw FxaChallengeBlocked(
+                            e.message ?: "Mozilla's security challenge failed",
+                            e,
+                        )
                     }
                     solved++
                     val next = client.newCall(newRequest()).awaitResponse()
@@ -416,13 +706,14 @@ class FxaAuthRepository(
 
     /** Session-authenticated authorization-code grant (PKCE), used when fxa-credentials is refused with 406. */
     private suspend fun exchangeSessionWithOAuthCode(tokenId: String, hmacKey: ByteArray): Response? {
+        val client = httpClientProvider()
         val rng = SecureRandom()
         val b64 = Base64.getUrlEncoder().withoutPadding()
         val verifier = b64.encodeToString(ByteArray(32).also { rng.nextBytes(it) })
         val challenge = b64.encodeToString(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII)))
         val state = b64.encodeToString(ByteArray(16).also { rng.nextBytes(it) })
 
-        val authorizeUrl = "$FXA_AUTH_SERVER$FXA_OAUTH_AUTHORIZE_PATH".toHttpUrl()
+        val authorizeUrl = "${authServerUrl.trimEnd('/')}$FXA_OAUTH_AUTHORIZE_PATH".toHttpUrl()
         val authorizeBody = JSONObject().apply {
             put("client_id", FIREFOX_CLIENT_ID)
             put("response_type", "code")
@@ -433,7 +724,7 @@ class FxaAuthRepository(
             put("code_challenge_method", "S256")
         }.toString().toByteArray(Charsets.UTF_8)
 
-        val authorization = ControlPlaneHttp.client
+        val authorization = client
             .newCall(buildFxaRequest(authorizeUrl, "POST", authorizeBody, true, tokenId to hmacKey))
             .awaitResponse()
         val code: String = authorization.use { resp ->
@@ -443,7 +734,7 @@ class FxaAuthRepository(
             }
             val text = resp.body?.string().orEmpty()
             if (resp.code != 200) throw oauthCodeError(resp.code, text, "OAuth authorization")
-            val json = try { JSONObject(text) } catch (e: Exception) { throw IOException("invalid OAuth authorization response") }
+            val json = try { JSONObject(text) } catch (_: Exception) { throw IOException("invalid OAuth authorization response") }
             if (json.optString("code").isEmpty() || json.optString("state") != state) {
                 throw IOException("invalid OAuth authorization response")
             }
@@ -456,8 +747,8 @@ class FxaAuthRepository(
             put("code", code)
             put("code_verifier", verifier)
         }.toString().toByteArray(Charsets.UTF_8)
-        val tokens = ControlPlaneHttp.client
-            .newCall(buildFxaRequest(FXA_OAUTH_TOKEN_URL.toHttpUrl(), "POST", tokenBody, true, null))
+        val tokens = client
+            .newCall(buildFxaRequest(oauthTokenUrl.toHttpUrl(), "POST", tokenBody, true, null))
             .awaitResponse()
         if (tokens.code == 200) {
             AppLogger.i(TAG, "OAuth authorization-code exchange accepted after HTTP 406")
@@ -472,10 +763,10 @@ class FxaAuthRepository(
     /** Refresh at Mozilla's OAuth endpoint after the API host answered 406; null lets the challenge path continue. */
     private suspend fun refreshAtOAuthEndpoint(bodyBytes: ByteArray): Response? {
         val response = try {
-            ControlPlaneHttp.client
-                .newCall(buildFxaRequest(FXA_OAUTH_TOKEN_URL.toHttpUrl(), "POST", bodyBytes, true, null))
+            httpClientProvider()
+                .newCall(buildFxaRequest(oauthTokenUrl.toHttpUrl(), "POST", bodyBytes, true, null))
                 .awaitResponse()
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             return null
         }
         if (response.code == 200) {
@@ -514,7 +805,6 @@ class FxaAuthRepository(
     }
 
     private fun Request.Builder.applyOAuthProfileHeaders(): Request.Builder {
-        // Native Firefox OAuth request profile, as sent by the reference client on every grant.
         header("Accept", "application/json;q=0.9,*/*;q=0.2")
         header("Accept-Language", "en-US, en")
         header("Cache-Control", "no-cache")

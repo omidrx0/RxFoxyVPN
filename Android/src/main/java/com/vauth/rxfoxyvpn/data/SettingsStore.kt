@@ -3,6 +3,7 @@ package com.vauth.rxfoxyvpn.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.vauth.rxfoxyvpn.data.relay.RelayConfig
 import com.vauth.rxfoxyvpn.ui.theme.ThemeMode
 
 class SettingsStore(context: Context) {
@@ -127,6 +128,57 @@ class SettingsStore(context: Context) {
         get() = credentialsPrefs.getString(KEY_UPSTREAM_PROXY_PASSWORD, "") ?: ""
         set(value) { credentialsPrefs.edit().putString(KEY_UPSTREAM_PROXY_PASSWORD, value).apply() }
 
+    // ---- Control-plane relay (Mozilla sign-in / Guardian / server list only; never VPN traffic) ----
+    // Kept apart from the upstream proxy settings above. The personal relay URL carries a secret, so it lives in
+    // the encrypted store; the on/off switches are ordinary preferences, and turning the personal relay off keeps
+    // the saved URL.
+
+    var sharedRelayEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SHARED_RELAY_ENABLED, true)
+        set(value) { prefs.edit().putBoolean(KEY_SHARED_RELAY_ENABLED, value).apply() }
+
+    var personalRelayEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PERSONAL_RELAY_ENABLED, false)
+        set(value) { prefs.edit().putBoolean(KEY_PERSONAL_RELAY_ENABLED, value).apply() }
+
+    var personalRelayOnly: Boolean
+        get() = prefs.getBoolean(KEY_PERSONAL_RELAY_ONLY, false)
+        set(value) { prefs.edit().putBoolean(KEY_PERSONAL_RELAY_ONLY, value).apply() }
+
+    /** Stored exactly as entered (trimmed). Validate with RelayPolicy.validatePersonalRelayUrl before saving. */
+    var personalRelayUrl: String
+        get() = credentialsPrefs.getString(KEY_PERSONAL_RELAY_URL, "") ?: ""
+        set(value) { credentialsPrefs.edit().putString(KEY_PERSONAL_RELAY_URL, value.trim()).apply() }
+
+    /**
+     * Optional shared relay secret managed privately in encrypted preferences or BuildConfig,
+     * completely separate from the public GitHub `updates.json` Manifest.
+     */
+    var sharedRelaySecret: String
+        get() = credentialsPrefs.getString(KEY_SHARED_RELAY_SECRET, null)
+            ?.takeIf { it.isNotEmpty() }
+            ?: com.vauth.rxfoxyvpn.BuildConfig.SHARED_RELAY_SECRET
+        set(value) { credentialsPrefs.edit().putString(KEY_SHARED_RELAY_SECRET, value.trim()).apply() }
+
+    /** Optional override for the primary Manifest URL (blank uses ManifestConfig.DEFAULT_PRIMARY_URL). */
+    var manifestPrimaryUrlOverride: String
+        get() = prefs.getString(KEY_MANIFEST_PRIMARY_URL_OVERRIDE, "") ?: ""
+        set(value) { prefs.edit().putString(KEY_MANIFEST_PRIMARY_URL_OVERRIDE, value.trim()).apply() }
+
+    /** Optional override for the fallback CDN Manifest URL (blank uses ManifestConfig.DEFAULT_FALLBACK_URL). */
+    var manifestFallbackUrlOverride: String
+        get() = prefs.getString(KEY_MANIFEST_FALLBACK_URL_OVERRIDE, "") ?: ""
+        set(value) { prefs.edit().putString(KEY_MANIFEST_FALLBACK_URL_OVERRIDE, value.trim()).apply() }
+
+    val relayConfig: RelayConfig
+        get() = RelayConfig(
+            sharedEnabled = sharedRelayEnabled,
+            personalEnabled = personalRelayEnabled,
+            personalUrl = personalRelayUrl,
+            personalOnly = personalRelayOnly,
+            sharedSecret = sharedRelaySecret,
+        )
+
     var excludedApps: Set<String>
         get() = prefs.getStringSet(KEY_EXCLUDED_APPS, emptySet())?.toSet() ?: emptySet()
         set(value) {
@@ -172,6 +224,13 @@ class SettingsStore(context: Context) {
         private const val KEY_UPSTREAM_PROXY_USERNAME = "upstream_proxy_username"
         private const val KEY_UPSTREAM_PROXY_PASSWORD = "upstream_proxy_password"
         private const val KEY_EXCLUDED_APPS = "excluded_apps"
+        private const val KEY_SHARED_RELAY_ENABLED = "relay_shared_enabled"
+        private const val KEY_PERSONAL_RELAY_ENABLED = "relay_personal_enabled"
+        private const val KEY_PERSONAL_RELAY_ONLY = "relay_personal_only"
+        private const val KEY_PERSONAL_RELAY_URL = "relay_personal_url"
+        private const val KEY_SHARED_RELAY_SECRET = "relay_shared_secret"
+        private const val KEY_MANIFEST_PRIMARY_URL_OVERRIDE = "manifest_primary_url_override"
+        private const val KEY_MANIFEST_FALLBACK_URL_OVERRIDE = "manifest_fallback_url_override"
         const val DEFAULT_TUNNEL_MTU = 1400
         const val MIN_TUNNEL_MTU = 1280
         const val MAX_TUNNEL_MTU = 9000

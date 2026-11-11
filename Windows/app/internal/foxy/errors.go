@@ -47,6 +47,28 @@ type ConnectionLostError struct{ Msg string }
 
 func (e *ConnectionLostError) Error() string { return e.Msg }
 
+// RegionBlockedError indicates HTTP 451 (Unavailable For Legal Reasons) after relay recovery.
+type RegionBlockedError struct {
+	Exhausted string // "none", "personal", "shared", or "all-failed"
+}
+
+func (e *RegionBlockedError) Error() string {
+	if e.Exhausted == "" || e.Exhausted == "none" {
+		return "Mozilla refused this region (HTTP 451)"
+	}
+	return fmt.Sprintf("Mozilla refused this region (HTTP 451; relay recovery %s)", e.Exhausted)
+}
+
+// CaptchaCancelledError indicates the user cancelled an interactive CAPTCHA prompt.
+type CaptchaCancelledError struct{}
+
+func (CaptchaCancelledError) Error() string { return "CAPTCHA cancelled by user" }
+
+// FastlyCaptchaRequiredError indicates Fastly requested a manual image CAPTCHA on a non-interactive call.
+type FastlyCaptchaRequiredError struct{ Msg string }
+
+func (e *FastlyCaptchaRequiredError) Error() string { return e.Msg }
+
 var (
 	errTokenInvalid    = errors.New("access token was rejected by Guardian")
 	errNoChallengePage = errors.New("host did not serve a Fastly challenge page")

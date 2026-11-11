@@ -8,7 +8,36 @@ import com.vauth.rxfoxyvpn.data.model.RuntimeAuth
 
 private const val TAG = "TokenStore"
 
-class TokenStore(context: Context) {
+interface AuthPersistence {
+    fun saveAuth(auth: RuntimeAuth)
+    fun loadAuth(): RuntimeAuth?
+    fun hasValidAccessToken(): Boolean
+    fun clear()
+}
+
+class InMemoryAuthPersistence(initial: RuntimeAuth? = null) : AuthPersistence {
+    @Volatile
+    private var current: RuntimeAuth? = initial
+
+    override fun saveAuth(auth: RuntimeAuth) {
+        current = auth
+    }
+
+    override fun loadAuth(): RuntimeAuth? = current
+
+    override fun hasValidAccessToken(): Boolean {
+        val auth = current ?: return false
+        if (auth.expiresAtEpochSeconds <= 0L) return false
+        val nowSeconds = System.currentTimeMillis() / 1000
+        return auth.expiresAtEpochSeconds - nowSeconds > 60L
+    }
+
+    override fun clear() {
+        current = null
+    }
+}
+
+class TokenStore(context: Context) : AuthPersistence {
 
     private val prefs: SharedPreferences = initPrefs(context)
 
@@ -47,7 +76,7 @@ class TokenStore(context: Context) {
         }
     }
 
-    fun saveAuth(auth: RuntimeAuth) {
+    override fun saveAuth(auth: RuntimeAuth) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, auth.accessToken)
             .putString(KEY_REFRESH_TOKEN, auth.refreshToken)
@@ -55,7 +84,7 @@ class TokenStore(context: Context) {
             .apply()
     }
 
-    fun loadAuth(): RuntimeAuth? = runCatching {
+    override fun loadAuth(): RuntimeAuth? = runCatching {
         val access = prefs.getString(KEY_ACCESS_TOKEN, null)?.takeIf { it.isNotBlank() } ?: return@runCatching null
         val refresh = prefs.getString(KEY_REFRESH_TOKEN, null)?.takeIf { it.isNotBlank() }
         val expiresAt = prefs.getLong(KEY_EXPIRES_AT, 0L)
@@ -64,7 +93,7 @@ class TokenStore(context: Context) {
         AppLogger.w(TAG, "could not read the stored session", it)
     }.getOrNull()
 
-    fun hasValidAccessToken(): Boolean {
+    override fun hasValidAccessToken(): Boolean {
         val auth = loadAuth() ?: return false
         if (auth.expiresAtEpochSeconds <= 0L) return false
         val nowSeconds = System.currentTimeMillis() / 1000
@@ -81,7 +110,7 @@ class TokenStore(context: Context) {
     )
     fun hasValidSession(): Boolean = hasValidAccessToken()
 
-    fun clear() {
+    override fun clear() {
         prefs.edit().clear().apply()
     }
 

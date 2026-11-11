@@ -1,5 +1,6 @@
 // Package app holds the connection logic of the panel: sign-in, server list, ping, connect /
-// disconnect, settings. The HTTP layer (internal/server) is a thin JSON wrapper around it.
+// disconnect, relay, announcements, and settings. The HTTP layer (internal/server) is a thin JSON
+// wrapper around it.
 package app
 
 import (
@@ -27,21 +28,28 @@ type Body map[string]any
 
 // Options are the command line options that influence the app.
 type Options struct {
-	SocksPort int
-	HTTPPort  int
-	APIProxy  string
-	TLS       foxy.TLSOptions
+	SocksPort        int
+	HTTPPort         int
+	APIProxy         string
+	TLS              foxy.TLSOptions
+	LaunchFxaWebView func(ipcURL, ipcSecret, email string) (func(), error)
 }
 
 // App is the whole backend of the panel. All methods are safe for concurrent use.
 type App struct {
-	opts     Options
-	cp       *foxy.ControlPlane
-	account  *foxy.Account
-	accounts *config.AccountStore
-	stats    *foxy.Stats
-	runtime  tun.Paths
-	tunProc  tun.Process
+	opts          Options
+	cp            *foxy.ControlPlane
+	account       *foxy.Account
+	accounts      *config.AccountStore
+	relayStore    *config.RelayStore
+	annStore      *config.AnnouncementStore
+	sharedRelays  *foxy.SharedRelayManager
+	healthChecker *foxy.RelayHealthChecker
+	captchaBroker *foxy.CaptchaBroker
+	browserAuth   *foxy.BrowserAuthCoordinator
+	stats         *foxy.Stats
+	runtime       tun.Paths
+	tunProc       tun.Process
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -59,8 +67,10 @@ type App struct {
 	pendingSession            string
 	pendingEmail              string
 	pendingVerificationMethod string
-	quotaLimit                *int
-	quotaRemaining            *int
+	pendingUnblockEmail       string
+	pendingPassword           string
+	lastInteractiveEmail      string
+	quotaInfo                 foxy.QuotaInfo
 	connectionSaveMu          sync.Mutex
 	settingsMu                sync.Mutex
 
@@ -69,6 +79,19 @@ type App struct {
 
 	quotaRefreshMu sync.Mutex
 	quotaWake      chan struct{}
+	manifestWake   chan struct{}
+}
+
+func toFoxyRelayConfig(rc config.RelayConfig) foxy.RelayConfig {
+	return foxy.RelayConfig{
+		SharedEnabled:            rc.SharedEnabled,
+		PersonalEnabled:          rc.PersonalEnabled,
+		PersonalURL:              rc.PersonalURL,
+		PersonalOnly:             rc.PersonalOnly,
+		SharedSecret:             rc.SharedSecret,
+		ManifestPrimaryOverride:  rc.ManifestPrimaryOverride,
+		ManifestFallbackOverride: rc.ManifestFallbackOverride,
+	}
 }
 
 // New creates the app, restores a system proxy left behind by a crash and starts the
@@ -78,34 +101,77 @@ func New(opts Options) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	relayStore := config.NewRelayStore(config.RelayConfigPath(), platform.DPAPI{})
+	annStore := config.NewAnnouncementStore(config.AnnouncementsPath())
+
+	cfgSource := func() foxy.RelayConfig {
+		return toFoxyRelayConfig(relayStore.Load())
+	}
+	sharedMgr, err := foxy.NewSharedRelayManager(opts.TLS, cfgSource)
+	if err != nil {
+		return nil, err
+	}
+	relayTr, err := foxy.NewRelayTransport(opts.TLS)
+	if err != nil {
+		return nil, err
+	}
+	healthChecker, err := foxy.NewRelayHealthChecker(opts.TLS)
+	if err != nil {
+		return nil, err
+	}
+	cp.SetRelayCoordinator(foxy.NewRelayFallbackCoordinator(cfgSource, relayTr, sharedMgr))
+
 	ctx, cancel := context.WithCancel(context.Background())
+	account := foxy.NewAccount(cp, "")
 	a := &App{
-		opts:         opts,
-		cp:           cp,
-		account:      foxy.NewAccount(cp, ""),
-		accounts:     config.NewAccountStore(config.SavedAccountsPath(), platform.DPAPI{}),
-		stats:        &foxy.Stats{},
-		runtime:      tun.ResolveRuntime(),
-		ctx:          ctx,
-		cancel:       cancel,
-		connSettings: config.LoadConnection(),
-		settings:     config.LoadSettings(),
-		countries:    map[string]*foxy.Country{},
-		quotaWake:    make(chan struct{}, 1),
+		opts:          opts,
+		cp:            cp,
+		account:       account,
+		accounts:      config.NewAccountStore(config.SavedAccountsPath(), platform.DPAPI{}),
+		relayStore:    relayStore,
+		annStore:      annStore,
+		sharedRelays:  sharedMgr,
+		healthChecker: healthChecker,
+		captchaBroker: cp.CaptchaBroker(),
+		stats:         &foxy.Stats{},
+		runtime:       tun.ResolveRuntime(),
+		ctx:           ctx,
+		cancel:        cancel,
+		connSettings:  config.LoadConnection(),
+		settings:      config.LoadSettings(),
+		quotaInfo:     account.CachedQuotaInfo(),
+		countries:     map[string]*foxy.Country{},
+		quotaWake:     make(chan struct{}, 1),
+		manifestWake:  make(chan struct{}, 1),
 	}
-	if limit, remaining := a.account.Quota(); limit != nil && remaining != nil {
-		a.quotaLimit, a.quotaRemaining = limit, remaining
-	}
+	a.browserAuth = foxy.NewBrowserAuthCoordinator(
+		account,
+		foxy.BrowserAuthStarter{
+			LaunchWebViewHelper: opts.LaunchFxaWebView,
+			OpenExternalURL:     platform.OpenURL,
+		},
+		func(_ context.Context, email string) {
+			a.onPostLoginComplete(email)
+		},
+	)
+
 	if err := sysproxy.Restore(config.ProxyBackupPath()); err != nil {
 		slog.Error("could not restore a previous Windows proxy setting", "err", err)
 	}
 	go a.serverListRefresher()
 	go a.quotaRefresher()
+	go a.manifestRefresher()
 	return a, nil
 }
 
 // Close disconnects and stops the background work.
 func (a *App) Close() {
+	if a.browserAuth != nil {
+		a.browserAuth.Cancel()
+	}
+	if a.captchaBroker != nil {
+		a.captchaBroker.Cancel()
+	}
 	a.opMu.Lock()
 	a.doDisconnect()
 	a.opMu.Unlock()
@@ -206,7 +272,33 @@ func (a *App) serverListRefresher() {
 	}
 }
 
-// ---------------------------------------------------------------- quota
+// ---------------------------------------------------------------- manifest & announcements
+
+func (a *App) wakeManifest() {
+	select {
+	case a.manifestWake <- struct{}{}:
+	default:
+	}
+}
+
+func (a *App) manifestRefresher() {
+	for {
+		rc := a.relayStore.Load()
+		if rc.SharedEnabled || a.account.HasSession() {
+			ctx, cancel := context.WithTimeout(a.ctx, 25*time.Second)
+			a.sharedRelays.Refresh(ctx, false)
+			cancel()
+		}
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-a.manifestWake:
+		case <-time.After(10 * time.Minute):
+		}
+	}
+}
+
+// ---------------------------------------------------------------- quota (4-state Guardian model)
 
 func (a *App) wakeQuota() {
 	select {
@@ -241,45 +333,95 @@ func (a *App) refreshQuota() {
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 45*time.Second)
 	defer cancel()
-	usage, err := a.account.FetchQuota(ctx)
+	info, err := a.account.FetchQuotaInfo(ctx)
 	if err != nil {
 		slog.Info("quota refresh failed", "err", err)
+		a.mu.Lock()
+		if a.quotaInfo.State == "" || a.quotaInfo.State == foxy.QuotaStateUnknown {
+			a.quotaInfo = foxy.QuotaInfo{State: foxy.QuotaStateError}
+		}
+		a.mu.Unlock()
 		return
 	}
-	if usage != nil {
-		a.rememberQuota(usage.Limit, usage.Remaining)
-	}
+	a.setQuotaInfo(info)
 }
 
 func (a *App) scheduleQuotaRefresh() { go a.refreshQuota() }
 
-// rememberQuota stores a plausible allowance and persists it when it changed.
-func (a *App) rememberQuota(limit, remaining int) {
-	if limit <= 0 || remaining < 0 || remaining > limit {
-		return
-	}
+func (a *App) setQuotaInfo(info foxy.QuotaInfo) {
 	a.mu.Lock()
-	if a.quotaLimit != nil && a.quotaRemaining != nil && *a.quotaLimit == limit && *a.quotaRemaining == remaining {
-		a.mu.Unlock()
-		return
-	}
-	l, r := limit, remaining
-	a.quotaLimit, a.quotaRemaining = &l, &r
+	a.quotaInfo = info
 	a.mu.Unlock()
-	a.account.SetQuota(&l, &r)
+	a.account.SetQuotaInfo(info)
 }
 
 func (a *App) rememberPass(p *foxy.ProxyPass) {
-	if p != nil && p.QuotaLimit != nil && p.QuotaRemaining != nil {
-		a.rememberQuota(*p.QuotaLimit, *p.QuotaRemaining)
+	if p == nil {
+		return
+	}
+	if p.QuotaUnlimited {
+		a.mu.RLock()
+		sub := a.quotaInfo.Subscribed
+		a.mu.RUnlock()
+		a.setQuotaInfo(foxy.QuotaInfo{
+			State:      foxy.QuotaStateUnlimited,
+			Subscribed: sub,
+		})
+		return
+	}
+	if p.QuotaLimit != nil && p.QuotaRemaining != nil && *p.QuotaLimit > 0 && *p.QuotaRemaining >= 0 {
+		limit, rem := *p.QuotaLimit, *p.QuotaRemaining
+		used := max(int64(0), limit-rem)
+		a.mu.RLock()
+		cur := a.quotaInfo
+		a.mu.RUnlock()
+		// Never overwrite an already-established Unlimited state with a nominal byte header.
+		if cur.State == foxy.QuotaStateUnlimited {
+			return
+		}
+		a.setQuotaInfo(foxy.QuotaInfo{
+			State:          foxy.QuotaStateLimited,
+			Subscribed:     cur.Subscribed,
+			LimitBytes:     &limit,
+			RemainingBytes: &rem,
+			UsedBytes:      &used,
+			ResetAt:        cur.ResetAt,
+		})
 	}
 }
 
 func (a *App) clearQuota() {
+	empty := foxy.QuotaInfo{State: foxy.QuotaStateUnknown}
 	a.mu.Lock()
-	a.quotaLimit, a.quotaRemaining = nil, nil
+	a.quotaInfo = empty
 	a.mu.Unlock()
-	a.account.SetQuota(nil, nil)
+	a.account.SetQuotaInfo(empty)
+}
+
+// onPostLoginComplete is the single unified convergence point shared by Direct Login and
+// Browser Login (both isolated WebView2 WebChannel and External Browser OAuth PKCE).
+func (a *App) onPostLoginComplete(email string) {
+	a.mu.Lock()
+	a.pendingSession = ""
+	a.pendingEmail = ""
+	a.pendingVerificationMethod = ""
+	a.pendingUnblockEmail = ""
+	a.pendingPassword = ""
+	a.mu.Unlock()
+
+	if clean := foxy.NormalizeEmail(email); clean != "" {
+		a.account.SetEmail(clean)
+	}
+	a.quotaRefreshMu.Lock()
+	a.clearQuota()
+	a.quotaRefreshMu.Unlock()
+	a.scheduleQuotaRefresh()
+	a.wakeManifest()
+	go func() {
+		ctx, cancel := context.WithTimeout(a.ctx, 45*time.Second)
+		defer cancel()
+		_, _ = a.EnsureCountries(ctx, false)
+	}()
 }
 
 // ---------------------------------------------------------------- body helpers
@@ -311,6 +453,11 @@ func intOf(v any) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+func boolOf(v any) (bool, bool) {
+	b, ok := v.(bool)
+	return b, ok
 }
 
 func ptr(s string) *string {

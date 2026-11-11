@@ -13,6 +13,9 @@ import com.vauth.rxfoxyvpn.data.ProxyStateStore
 import com.vauth.rxfoxyvpn.data.ServerListClient
 import com.vauth.rxfoxyvpn.data.SettingsStore
 import com.vauth.rxfoxyvpn.data.TokenStore
+import com.vauth.rxfoxyvpn.data.manifest.ManifestRuntime
+import com.vauth.rxfoxyvpn.data.relay.RelayConfigSource
+import com.vauth.rxfoxyvpn.data.relay.RelayRuntime
 import com.vauth.rxfoxyvpn.vpn.upstream.NettyLoggingBridge
 import org.conscrypt.Conscrypt
 import java.security.Security
@@ -38,6 +41,8 @@ class RxFoxyVpnApp : Application() {
         tokenStore = TokenStore(this)
         proxyStateStore = ProxyStateStore(this)
         settingsStore = SettingsStore(this)
+        ManifestRuntime.install(this, settingsStore)
+        RelayRuntime.configSource = RelayConfigSource { settingsStore.relayConfig }
         guardianClient = GuardianClient()
         serverListClient = ServerListClient()
         authRepository = FxaAuthRepository(tokenStore)

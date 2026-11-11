@@ -8,6 +8,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.vauth.rxfoxyvpn.MainActivity
+import com.vauth.rxfoxyvpn.R
 import com.vauth.rxfoxyvpn.data.SettingsStore
 import com.vauth.rxfoxyvpn.data.TokenStore
 import com.vauth.rxfoxyvpn.data.model.ConnectionState
@@ -57,7 +58,7 @@ class QuickConnectTileService : TileService() {
 
     private fun updateTile(state: ConnectionState) {
         val tile = qsTile ?: return
-        tile.icon = Icon.createWithResource(this, android.R.drawable.ic_lock_lock)
+        tile.icon = Icon.createWithResource(this, R.drawable.ic_qs_fox)
         tile.label = "RXFoxyVPN"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when (state) {

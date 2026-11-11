@@ -236,26 +236,36 @@ type CountryInfo struct {
 
 // Status is the answer of /api/status (polled by the panel every second or so).
 type Status struct {
-	LoggedIn             bool              `json:"logged_in"`
-	PendingCode          bool              `json:"pending_code"`
-	State                string            `json:"state"`
-	Country              *CountryInfo      `json:"country"`
-	Host                 *string           `json:"host"`
-	Socks                *string           `json:"socks"`
-	HTTP                 *string           `json:"http"`
-	Active               int64             `json:"active"`
-	Total                int64             `json:"total"`
-	UploadedBytes        int64             `json:"uploaded_bytes"`
-	DownloadedBytes      int64             `json:"downloaded_bytes"`
-	Uptime               int64             `json:"uptime"`
-	LastCountry          *string           `json:"last_country"`
-	QuotaLimit           *int              `json:"quota_limit"`
-	QuotaRemaining       *int              `json:"quota_remaining"`
-	Connection           config.Connection `json:"connection"`
-	SystemProxyAvailable bool              `json:"system_proxy_available"`
-	TunAvailable         bool              `json:"tun_available"`
-	TunAdmin             bool              `json:"tun_admin"`
-	Lang                 string            `json:"lang"`
+	LoggedIn                  bool                `json:"logged_in"`
+	Email                     *string             `json:"email,omitempty"`
+	PendingCode               bool                `json:"pending_code"`
+	PendingVerificationMethod string              `json:"pending_verification_method,omitempty"`
+	PendingUnblock            bool                `json:"pending_unblock"`
+	PendingEmail              *string             `json:"pending_email,omitempty"`
+	CaptchaActive             bool                `json:"captcha_active"`
+	Captcha                   *foxy.CaptchaPrompt `json:"captcha,omitempty"`
+	State                     string              `json:"state"`
+	Country                   *CountryInfo        `json:"country"`
+	Host                      *string             `json:"host"`
+	Socks                     *string             `json:"socks"`
+	HTTP                      *string             `json:"http"`
+	Active                    int64               `json:"active"`
+	Total                     int64               `json:"total"`
+	UploadedBytes             int64               `json:"uploaded_bytes"`
+	DownloadedBytes           int64               `json:"downloaded_bytes"`
+	Uptime                    int64               `json:"uptime"`
+	LastCountry               *string             `json:"last_country"`
+	QuotaState                foxy.QuotaStateKind `json:"quota_state"`
+	QuotaUnlimited            bool                `json:"quota_unlimited"`
+	QuotaSubscribed           bool                `json:"quota_subscribed"`
+	QuotaLimit                *int64              `json:"quota_limit"`
+	QuotaRemaining            *int64              `json:"quota_remaining"`
+	QuotaResetAt              *string             `json:"quota_reset_at,omitempty"`
+	Connection                config.Connection   `json:"connection"`
+	SystemProxyAvailable      bool                `json:"system_proxy_available"`
+	TunAvailable              bool                `json:"tun_available"`
+	TunAdmin                  bool                `json:"tun_admin"`
+	Lang                      string              `json:"lang"`
 }
 
 // Status returns the current state of the app.
@@ -274,26 +284,58 @@ func (a *App) StatusNow() Status {
 		a.rememberPass(up.Tokens().Current())
 	}
 	a.mu.RLock()
-	qLimit, qRemaining := a.quotaLimit, a.quotaRemaining
+	q := a.quotaInfo
 	pending := a.pendingSession != ""
+	pendingMethod := a.pendingVerificationMethod
+	pendingUnblock := a.pendingUnblockEmail != ""
+	pEmail := a.pendingEmail
+	if pEmail == "" {
+		pEmail = a.pendingUnblockEmail
+	}
 	a.mu.RUnlock()
 
+	var capView *foxy.CaptchaPrompt
+	if a.captchaBroker != nil {
+		capView = a.captchaBroker.Current()
+	}
+
+	qState := q.State
+	if qState == "" {
+		qState = foxy.QuotaStateUnknown
+	}
+	isUnlimited := qState == foxy.QuotaStateUnlimited
+	var qLimit, qRem *int64
+	if !isUnlimited && q.LimitBytes != nil && q.RemainingBytes != nil {
+		l, r := *q.LimitBytes, *q.RemainingBytes
+		qLimit, qRem = &l, &r
+	}
+
 	st := Status{
-		LoggedIn:             a.account.HasSession(),
-		PendingCode:          pending,
-		State:                "idle",
-		Active:               a.stats.Active.Load(),
-		Total:                a.stats.Total.Load(),
-		UploadedBytes:        a.stats.Uploaded.Load(),
-		DownloadedBytes:      a.stats.Downloaded.Load(),
-		LastCountry:          ptr(a.account.LastCountry()),
-		QuotaLimit:           qLimit,
-		QuotaRemaining:       qRemaining,
-		Connection:           cs,
-		SystemProxyAvailable: platform.IsWindows,
-		TunAvailable:         platform.IsWindows && a.runtime.Exists(),
-		TunAdmin:             platform.IsAdmin(),
-		Lang:                 locale.Get(),
+		LoggedIn:                  a.account.HasSession(),
+		Email:                     ptr(a.account.Email()),
+		PendingCode:               pending,
+		PendingVerificationMethod: pendingMethod,
+		PendingUnblock:            pendingUnblock,
+		PendingEmail:              ptr(pEmail),
+		CaptchaActive:             capView != nil,
+		Captcha:                   capView,
+		State:                     "idle",
+		Active:                    a.stats.Active.Load(),
+		Total:                     a.stats.Total.Load(),
+		UploadedBytes:             a.stats.Uploaded.Load(),
+		DownloadedBytes:           a.stats.Downloaded.Load(),
+		LastCountry:               ptr(a.account.LastCountry()),
+		QuotaState:                qState,
+		QuotaUnlimited:            isUnlimited,
+		QuotaSubscribed:           q.Subscribed,
+		QuotaLimit:                qLimit,
+		QuotaRemaining:            qRem,
+		QuotaResetAt:              ptr(q.ResetAt),
+		Connection:                cs,
+		SystemProxyAvailable:      platform.IsWindows,
+		TunAvailable:              platform.IsWindows && a.runtime.Exists(),
+		TunAdmin:                  platform.IsAdmin(),
+		Lang:                      locale.Get(),
 	}
 	if connected && up != nil {
 		st.State = "connected"

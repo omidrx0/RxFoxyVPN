@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="170dp"
-    android:minHeight="108dp"
     android:initialLayout="@layout/widget_quick_connect"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="57dp"
+    android:minResizeHeight="57dp"
+    android:previewLayout="@layout/widget_orb_ready_anim"
     android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

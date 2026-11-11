@@ -49,9 +49,9 @@ const (
 	trayCallbackMsg = wmApp + 1
 	trayIconID      = 1
 
-	idOpen   = 1
-	idToggle = 2
-	idQuit   = 99
+	idOpen     = 1
+	idToggle   = 2
+	idQuit     = 99
 	idModeBase = 10 // + index in trayModes
 	idLangBase = 20 // + index in languageNames
 )
@@ -125,11 +125,11 @@ type trayActions struct {
 type tray struct {
 	act trayActions
 
-	mu        sync.Mutex
-	hwnd      uintptr
-	iconOn    uintptr
-	iconOff   uintptr
-	connected bool
+	mu             sync.Mutex
+	hwnd           uintptr
+	iconOn         uintptr
+	iconOff        uintptr
+	connected      bool
 	taskbarCreated uint32
 
 	ready chan error

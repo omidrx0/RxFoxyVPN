@@ -53,6 +53,11 @@ const pings = {};
 let trafficSample = null;
 let trafficRates = {uploaded:0, downloaded:0};
 let pollTimer = null, lastListHtml = '', animList = false, netMode = 'idle';
+let loginMethod = 'direct', loginStep = 'main', pendingVerifMethod = 'email-2fa';
+let captchaTimer = null, lastCaptchaPromptId = 0;
+let browserPollTimer = null;
+let relayState = null, relayHealthStatus = null;
+let annQueue = [], annTotal = 0, annShown = 0, annTimer = null;
 
 /* ======================================================== helpers */
 async function api(path, body) {
@@ -132,22 +137,60 @@ function setNum(el, v) {
   el.textContent = v; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
 }
 function renderQuota() {
-  const remaining = st.quota_remaining;
-  const total = st.quota_limit;
-  const known = Number.isSafeInteger(remaining) && Number.isSafeInteger(total) && total > 0 && remaining >= 0 && remaining <= total;
-  const bytesPerGb = 1024 ** 3;
-  const remainingGb = known ? remaining / bytesPerGb : 0;
-  const limitGb = known ? total / bytesPerGb : 0;
-  const usedGb = known ? (total - remaining) / bytesPerGb : 0;
-  const format = n => new Intl.NumberFormat(lang === 'fa' ? 'fa-IR' : (lang === 'ko' ? 'ko-KR' : 'en-US'), {maximumFractionDigits:1}).format(n);
-  const percent = known ? remaining / total * 100 : 0;
-  $('#quota').classList.toggle('unknown', !known);
-  $('#quota-value').textContent = known ? `${format(remainingGb)} GB` : '—';
-  $('#quota-caption').textContent = known ? t('quota_used', {n:format(usedGb)}) : t('quota_unknown');
-  $('#quota-total').textContent = known ? t('quota_total', {n:format(limitGb)}) : t('quota_total_unknown');
-  $('#quota-fill').style.width = percent + '%';
-  $('#quota-bar').setAttribute('aria-valuenow', String(Math.round(percent)));
-  $('#quota-bar').setAttribute('aria-valuetext', known ? t('quota_remaining', {n:format(remainingGb)}) : t('quota_unknown'));
+  const qEl = $('#quota');
+  const state = st.quota_state || 'unknown';
+  const unlimited = state === 'unlimited' || Boolean(st.quota_unlimited);
+  qEl.classList.remove('unknown', 'unlimited', 'error');
+
+  if (unlimited) {
+    qEl.classList.add('unlimited');
+    $('#quota-value').textContent = t('quota_unlimited_val');
+    $('#quota-caption').textContent = t('quota_unlimited_caption');
+    $('#quota-total').textContent = t('quota_unlimited_total');
+    $('#quota-fill').style.width = '100%';
+    $('#quota-bar').setAttribute('aria-valuenow', '100');
+    $('#quota-bar').setAttribute('aria-valuetext', t('quota_unlimited_val'));
+    return;
+  }
+
+  const remaining = Number(st.quota_remaining);
+  const total = Number(st.quota_limit);
+  const known = state === 'limited' && Number.isFinite(remaining) && Number.isFinite(total) && total > 0 && remaining >= 0 && remaining <= total;
+
+  if (known) {
+    const bytesPerGb = 1024 ** 3;
+    const remainingGb = remaining / bytesPerGb;
+    const limitGb = total / bytesPerGb;
+    const usedGb = Math.max(0, total - remaining) / bytesPerGb;
+    const format = n => new Intl.NumberFormat(lang === 'fa' ? 'fa-IR' : (lang === 'ko' ? 'ko-KR' : 'en-US'), {maximumFractionDigits:1}).format(n);
+    const percent = Math.max(0, Math.min(100, (remaining / total) * 100));
+    $('#quota-value').textContent = `${format(remainingGb)} GB`;
+    $('#quota-caption').textContent = t('quota_used', {n:format(usedGb)});
+    $('#quota-total').textContent = t('quota_total', {n:format(limitGb)});
+    $('#quota-fill').style.width = percent + '%';
+    $('#quota-bar').setAttribute('aria-valuenow', String(Math.round(percent)));
+    $('#quota-bar').setAttribute('aria-valuetext', t('quota_remaining', {n:format(remainingGb)}));
+    return;
+  }
+
+  if (state === 'error') {
+    qEl.classList.add('error');
+    $('#quota-value').textContent = '—';
+    $('#quota-caption').textContent = t('quota_error');
+    $('#quota-total').textContent = t('quota_error_total');
+    $('#quota-fill').style.width = '0%';
+    $('#quota-bar').setAttribute('aria-valuenow', '0');
+    $('#quota-bar').setAttribute('aria-valuetext', t('quota_error'));
+    return;
+  }
+
+  qEl.classList.add('unknown');
+  $('#quota-value').textContent = '—';
+  $('#quota-caption').textContent = t('quota_checking');
+  $('#quota-total').textContent = t('quota_total_unknown');
+  $('#quota-fill').style.width = '0%';
+  $('#quota-bar').setAttribute('aria-valuenow', '0');
+  $('#quota-bar').setAttribute('aria-valuetext', t('quota_checking'));
 }
 function renderConnectionSettings() {
   const current = st.connection || {mode:'manual',protocol:'socks5',port:10808};
@@ -208,21 +251,61 @@ async function refreshSavedAccounts() {
     $('#saved-accounts-box').hidden = true;
   }
 }
-function showLogin(step) {
+function updateCodeStepTexts() {
+  const isTotp = pendingVerifMethod === 'totp-2fa';
+  $('#code-title').textContent = t(isTotp ? 'totp_h' : 'code_h');
+  $('#code-lead').textContent = t(isTotp ? 'totp_lead' : 'code_lead');
+  $('#code-lbl').textContent = t(isTotp ? 'totp_label' : 'code_label');
+  $('#code-resend').hidden = isTotp;
+}
+function setLoginMethod(m) {
+  loginMethod = m === 'browser' ? 'browser' : 'direct';
+  $$('#login-tabs [data-method]').forEach(btn => {
+    const on = btn.dataset.method === loginMethod;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', String(on));
+  });
+  if (loginStep === 'main') {
+    $('#f-login').hidden = loginMethod !== 'direct';
+    $('#f-browser').hidden = loginMethod !== 'browser';
+  }
+}
+function showLogin(step, verifMethod) {
   clearInterval(pollTimer);
+  clearInterval(annTimer);
   document.body.classList.remove('in-app');
   closeSettings();
+  $('#ann-overlay').hidden = true;
   $('#app').hidden = true; $('#login').hidden = false;
-  $('#f-login').hidden = step === 'code'; $('#f-code').hidden = step !== 'code';
-  $('#err-login').textContent = ''; $('#err-code').textContent = '';
+
+  loginStep = (step === 'code' || step === 'unblock') ? step : 'main';
+  if (verifMethod) pendingVerifMethod = verifMethod;
+
+  const isMain = loginStep === 'main';
+  $('#login-tabs').hidden = !isMain;
+  $('#f-login').hidden = !(isMain && loginMethod === 'direct');
+  $('#f-browser').hidden = !(isMain && loginMethod === 'browser');
+  $('#f-code').hidden = loginStep !== 'code';
+  $('#f-unblock').hidden = loginStep !== 'unblock';
+
+  updateCodeStepTexts();
+  $('#err-login').textContent = '';
+  $('#err-code').textContent = '';
+  $('#err-unblock').textContent = '';
+  $('#err-browser').textContent = '';
   refreshSavedAccounts();
 }
 async function showApp() {
+  stopBrowserPoll();
+  syncCaptchaModal(null);
   document.body.classList.add('in-app');
   $('#login').hidden = true; $('#app').hidden = false;
   render();
   await loadServers();
   loadSettings().then(maybeAutoConnect);
+  void checkAnnouncements();
+  clearInterval(annTimer);
+  annTimer = setInterval(checkAnnouncements, 5 * 60 * 1000);
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, 2500);
 }
@@ -267,7 +350,11 @@ async function refresh() {
     const next = await api('status');
     updateTrafficRates(next);
     st = next; stAt = Date.now();
-    if (!st.logged_in) return showLogin();
+    syncCaptchaModal(st.captcha_active ? st.captcha : null);
+    if (!st.logged_in) {
+      const step = st.pending_code ? 'code' : (st.pending_unblock ? 'unblock' : undefined);
+      return showLogin(step, st.pending_verification_method);
+    }
     if (st.lang && st.lang !== lang) return applyLang(st.lang, false);
     syncExternalChanges();
     render();
@@ -493,30 +580,270 @@ $('#eye').onclick = () => {
   $('#eye').innerHTML = ic(show ? 'i-eye-off' : 'i-eye');
 };
 
+/* ======================================================== Interactive Fastly CAPTCHA, Browser Auth & Announcements */
+function syncCaptchaModal(prompt) {
+  const overlay = $('#captcha-overlay');
+  if (!overlay) return;
+  if (!prompt || !prompt.prompt_id) {
+    overlay.hidden = true;
+    lastCaptchaPromptId = 0;
+    return;
+  }
+  overlay.hidden = false;
+  const noticeEl = $('#captcha-notice');
+  const noticeMap = {
+    wrong_answer: 'captcha_notice_wrong',
+    expired: 'captcha_notice_expired',
+    decode_failed: 'captcha_notice_decode',
+    refresh_failed: 'captcha_notice_refresh_err'
+  };
+  if (prompt.notice && noticeMap[prompt.notice]) {
+    noticeEl.textContent = t(noticeMap[prompt.notice]);
+    noticeEl.hidden = false;
+  } else {
+    noticeEl.textContent = '';
+    noticeEl.hidden = true;
+  }
+
+  if (prompt.image_data_uri) {
+    $('#captcha-img').src = prompt.image_data_uri;
+  }
+  const loading = Boolean(prompt.loading);
+  $('#btn-captcha-submit').disabled = loading;
+  $('#btn-captcha-refresh').disabled = loading;
+  $('#captcha-answer').disabled = loading;
+
+  if (prompt.prompt_id !== lastCaptchaPromptId) {
+    lastCaptchaPromptId = prompt.prompt_id;
+    $('#err-captcha').textContent = '';
+    $('#captcha-answer').value = '';
+    setTimeout(() => $('#captcha-answer')?.focus(), 40);
+  }
+}
+
+async function pollCaptchaOnce() {
+  try {
+    const r = await api('captcha');
+    syncCaptchaModal(r.active ? r.challenge : null);
+  } catch (_) {}
+}
+
+async function withCaptchaWatch(fn) {
+  clearInterval(captchaTimer);
+  captchaTimer = setInterval(pollCaptchaOnce, 700);
+  try {
+    return await fn();
+  } finally {
+    clearInterval(captchaTimer);
+    captchaTimer = null;
+    syncCaptchaModal(null);
+  }
+}
+
+$('#f-captcha').onsubmit = async e => {
+  e.preventDefault();
+  const ans = $('#captcha-answer').value.trim();
+  if (!ans) return;
+  $('#err-captcha').textContent = '';
+  $('#btn-captcha-submit').disabled = true;
+  try {
+    await api('captcha_submit', {answer: ans});
+  } catch (err) {
+    $('#err-captcha').textContent = err.message;
+    $('#btn-captcha-submit').disabled = false;
+  }
+};
+$('#btn-captcha-refresh').onclick = async () => {
+  $('#err-captcha').textContent = '';
+  $('#btn-captcha-refresh').disabled = true;
+  try { await api('captcha_refresh', {}); }
+  catch (err) { $('#err-captcha').textContent = err.message; $('#btn-captcha-refresh').disabled = false; }
+};
+$('#btn-captcha-cancel').onclick = async () => {
+  try { await api('captcha_cancel', {}); } catch (_) {}
+  syncCaptchaModal(null);
+};
+
+/* ---- Browser Sign-In ---- */
+function stopBrowserPoll() {
+  clearInterval(browserPollTimer);
+  browserPollTimer = null;
+}
+function renderBrowserStatus(bs) {
+  const active = Boolean(bs && bs.active);
+  $('#browser-ctas').hidden = active;
+  $('#browser-progress').hidden = !active;
+  if (!active) return;
+
+  const stageKey = {
+    awaiting_browser: 'browser_stage_awaiting',
+    checking: 'browser_stage_checking',
+    waiting_for_confirmation: 'browser_stage_confirm',
+    getting_tokens: 'browser_stage_tokens'
+  }[bs.stage] || 'browser_stage_awaiting';
+  $('#browser-stage-txt').textContent = t(stageKey);
+  $('#browser-paste-box').hidden = bs.mode !== 'external';
+}
+async function pollBrowserAuth() {
+  try {
+    const bs = await api('browser_login_status');
+    renderBrowserStatus(bs);
+    if (bs.stage === 'succeeded') {
+      stopBrowserPoll();
+      await refresh();
+      if (st.logged_in) showApp();
+      return;
+    }
+    if (bs.stage === 'failed') {
+      stopBrowserPoll();
+      renderBrowserStatus({active: false});
+      $('#err-browser').textContent = bs.error || t('e_http', {c: 400});
+      return;
+    }
+    if (!bs.active) {
+      stopBrowserPoll();
+    }
+  } catch (_) {}
+}
+async function startBrowserAuth(mode) {
+  $('#err-browser').textContent = '';
+  $('#btn-browser-webview').disabled = true;
+  $('#btn-browser-external').disabled = true;
+  try {
+    const email = $('#browser-email').value.trim() || $('#email').value.trim();
+    const bs = await api('browser_login_start', {mode, email});
+    renderBrowserStatus(bs);
+    stopBrowserPoll();
+    browserPollTimer = setInterval(pollBrowserAuth, 1000);
+  } catch (err) {
+    $('#err-browser').textContent = err.message;
+  } finally {
+    $('#btn-browser-webview').disabled = false;
+    $('#btn-browser-external').disabled = false;
+  }
+}
+$('#btn-browser-webview').onclick = () => startBrowserAuth('webview2');
+$('#btn-browser-external').onclick = () => startBrowserAuth('external');
+$('#btn-browser-cancel').onclick = async () => {
+  stopBrowserPoll();
+  try { await api('browser_login_cancel', {}); } catch (_) {}
+  renderBrowserStatus({active: false});
+  $('#browser-redirect-url').value = '';
+};
+$('#btn-browser-complete').onclick = async () => {
+  const url = $('#browser-redirect-url').value.trim();
+  if (!url) return;
+  $('#btn-browser-complete').disabled = true;
+  $('#err-browser').textContent = '';
+  try {
+    await withCaptchaWatch(() => api('browser_login_complete', {redirect_url: url}));
+    $('#browser-redirect-url').value = '';
+    stopBrowserPoll();
+    await refresh();
+    showApp();
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-browser').textContent = err.message;
+  } finally {
+    $('#btn-browser-complete').disabled = false;
+  }
+};
+
+$$('#login-tabs [data-method]').forEach(btn => {
+  btn.onclick = () => setLoginMethod(btn.dataset.method);
+});
+
+/* ---- Sequential Home Announcements (persisted strictly on «متوجه شدم») ---- */
+function renderAnnouncementModal() {
+  const overlay = $('#ann-overlay');
+  if (!overlay) return;
+  if (!annQueue.length) {
+    overlay.hidden = true;
+    return;
+  }
+  const cur = annQueue[0];
+  $('#ann-title').textContent = cur.title || '';
+  $('#ann-message').textContent = cur.message || '';
+  $('#ann-counter').textContent = t('ann_counter', {i: annShown + 1, n: annTotal});
+  $('#ann-counter').hidden = annTotal <= 1;
+  overlay.hidden = false;
+}
+async function checkAnnouncements() {
+  if (!st.logged_in) return;
+  try {
+    const r = await api('announcements');
+    const list = Array.isArray(r.announcements) ? r.announcements : [];
+    if (!list.length) return;
+    const existingIds = new Set(annQueue.map(a => a.id));
+    let added = 0;
+    for (const item of list) {
+      if (item && item.id && !existingIds.has(item.id)) {
+        annQueue.push(item);
+        added++;
+      }
+    }
+    if (added > 0 && $('#ann-overlay').hidden) {
+      annTotal = annQueue.length;
+      annShown = 0;
+      renderAnnouncementModal();
+    }
+  } catch (_) {}
+}
+$('#btn-ann-ack').onclick = async () => {
+  if (!annQueue.length) { $('#ann-overlay').hidden = true; return; }
+  const cur = annQueue[0];
+  const btn = $('#btn-ann-ack');
+  btn.disabled = true;
+  try {
+    await api('ack_announcement', {id: cur.id});
+    annQueue.shift();
+    annShown++;
+    renderAnnouncementModal();
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ---- Login, Saved Accounts, 2FA/TOTP & Security Unblock ---- */
+function handleLoginResult(d, rememberToast) {
+  if (rememberToast) toast(t(d.account_saved ? 'account_saved' : 'account_not_saved'), d.account_saved ? undefined : 'err');
+  if (d.account_saved) refreshSavedAccounts();
+  if (d.need_unblock) {
+    showLogin('unblock');
+    $('#unblock-code').focus();
+    return false;
+  }
+  if (d.need_code) {
+    showLogin('code', d.verification_method || 'email-2fa');
+    $('#code').focus();
+    return false;
+  }
+  return true;
+}
+
 $('#f-login').onsubmit = async e => {
   e.preventDefault();
   const btn = $('#btn-login'); btn.disabled = true; $('#err-login').textContent = '';
   try {
     const remember = $('#remember-account').checked;
-    const d = await api('login', {email: $('#email').value, password: $('#password').value, remember});
+    const d = await withCaptchaWatch(() => api('login', {email: $('#email').value, password: $('#password').value, remember}));
     $('#password').value = '';
-    if (remember) toast(t(d.account_saved ? 'account_saved' : 'account_not_saved'), d.account_saved ? undefined : 'err');
-    if (d.account_saved) refreshSavedAccounts();
-    if (d.need_code) { showLogin('code'); $('#code').focus(); }
-    else { await refresh(); showApp(); }
-  } catch (err) { $('#err-login').textContent = err.message; }
-  finally { btn.disabled = false; }
+    if (handleLoginResult(d, remember)) { await refresh(); showApp(); }
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-login').textContent = err.message;
+  } finally { btn.disabled = false; }
 };
 $('#use-saved-account').onclick = async () => {
   const button = $('#use-saved-account'), email = $('#saved-accounts').value;
   if (!email) return;
   button.disabled = true; $('#err-login').textContent = '';
   try {
-    const result = await api('login_saved', {email});
-    if (result.need_code) { showLogin('code'); $('#code').focus(); }
-    else { await refresh(); showApp(); }
-  } catch (err) { $('#err-login').textContent = err.message; }
-  finally { button.disabled = false; }
+    const result = await withCaptchaWatch(() => api('login_saved', {email}));
+    if (handleLoginResult(result, false)) { await refresh(); showApp(); }
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-login').textContent = err.message;
+  } finally { button.disabled = false; }
 };
 $('#remove-saved-account').onclick = async () => {
   const email = $('#saved-accounts').value;
@@ -534,11 +861,54 @@ $('#remove-saved-account').onclick = async () => {
 $('#f-code').onsubmit = async e => {
   e.preventDefault();
   const btn = $('#btn-code'); btn.disabled = true; $('#err-code').textContent = '';
-  try { await api('verify', {code: $('#code').value}); $('#code').value = ''; await refresh(); showApp(); }
-  catch (err) { $('#err-code').textContent = err.message; }
-  finally { btn.disabled = false; }
+  try {
+    await withCaptchaWatch(() => api('verify', {code: $('#code').value, method: pendingVerifMethod}));
+    $('#code').value = '';
+    await refresh();
+    showApp();
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-code').textContent = err.message;
+  } finally { btn.disabled = false; }
 };
-$('#code-back').onclick = () => showLogin();
+$('#code-resend').onclick = async () => {
+  const btn = $('#code-resend'); btn.disabled = true; $('#err-code').textContent = '';
+  try {
+    await withCaptchaWatch(() => api('resend_code', {mode: 'verify'}));
+    toast(t('code_resent'));
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-code').textContent = err.message;
+  } finally { btn.disabled = false; }
+};
+$('#code-back').onclick = async () => {
+  try { await api('cancel_auth', {}); } catch (_) {}
+  $('#code').value = '';
+  showLogin();
+};
+$('#f-unblock').onsubmit = async e => {
+  e.preventDefault();
+  const btn = $('#btn-unblock'); btn.disabled = true; $('#err-unblock').textContent = '';
+  try {
+    const d = await withCaptchaWatch(() => api('unblock', {code: $('#unblock-code').value}));
+    $('#unblock-code').value = '';
+    if (handleLoginResult(d, false)) { await refresh(); showApp(); }
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-unblock').textContent = err.message;
+  } finally { btn.disabled = false; }
+};
+$('#unblock-resend').onclick = async () => {
+  const btn = $('#unblock-resend'); btn.disabled = true; $('#err-unblock').textContent = '';
+  try {
+    await withCaptchaWatch(() => api('resend_code', {mode: 'unblock'}));
+    toast(t('code_resent'));
+  } catch (err) {
+    if (!err.data?.captcha_cancelled) $('#err-unblock').textContent = err.message;
+  } finally { btn.disabled = false; }
+};
+$('#unblock-back').onclick = async () => {
+  try { await api('cancel_auth', {}); } catch (_) {}
+  $('#unblock-code').value = '';
+  showLogin();
+};
 document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });
 
 /* spotlight that follows the cursor + click ripple */
@@ -687,9 +1057,154 @@ const isNarrow = () => matchMedia('(max-width:900px)').matches;
 async function loadSettings() {
   try {
     const r = await api('settings');
-    settingsState = r.settings; autostartAvailable = !!r.autostart_available;
+    settingsState = r.settings;
+    autostartAvailable = !!r.autostart_available;
+    if (r.relay) relayState = r.relay;
   } catch (e) { toast(e.message, 'err'); }
 }
+async function loadRelaySettings() {
+  try {
+    relayState = await api('relay_settings');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function renderRelayInto(container) {
+  if (!container) return;
+  const rs = relayState || {shared_enabled:true, personal_enabled:false, personal_only:false, has_personal_url:false, personal_host:''};
+  const hostBadge = rs.has_personal_url && rs.personal_host
+    ? `<div class="relay-host-pill">${ic('i-check')}<span>${esc(t('relay_host_active', {host: rs.personal_host}))}</span></div>`
+    : `<div class="relay-host-pill off"><span>${esc(t('relay_host_none'))}</span></div>`;
+
+  const healthHtml = relayHealthStatus
+    ? `<div class="relay-health-out ${relayHealthStatus.ok ? 'ok' : 'err'}">${esc(relayHealthStatus.text)}</div>`
+    : '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'set-card relay-panel';
+  wrap.innerHTML = `
+    <div class="set-row">
+      <div class="set-txt"><b>${esc(t('relay_shared'))}</b><small>${esc(t('relay_shared_d'))}</small></div>
+      <label class="sw"><input type="checkbox" data-relay-toggle="shared_enabled"${rs.shared_enabled ? ' checked' : ''}><i></i></label>
+    </div>
+    <div class="set-row col">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%">
+        <div class="set-txt"><b>${esc(t('relay_personal'))}</b><small>${esc(t('relay_personal_d'))}</small></div>
+        <label class="sw"><input type="checkbox" data-relay-toggle="personal_enabled"${rs.personal_enabled ? ' checked' : ''}><i></i></label>
+      </div>
+      ${hostBadge}
+      <div class="relay-url-editor">
+        <label class="fld"><span>${esc(t('relay_url_label'))}</span>
+          <div class="inp" dir="ltr">${ic('i-link')}<input type="password" class="has-eye" data-relay-url dir="ltr" autocomplete="off" spellcheck="false" placeholder="${esc(t('relay_url_ph'))}">
+            <button class="eye" type="button" data-relay-eye aria-label="Toggle URL">${ic('i-eye')}</button>
+          </div>
+        </label>
+        <small>${esc(t('relay_url_hint'))}</small>
+        <div class="relay-btn-row">
+          <button type="button" class="chip on" data-relay-save>${esc(t('relay_save_url'))}</button>
+          <button type="button" class="chip" data-relay-test>${esc(t('relay_test_btn'))}</button>
+          ${rs.has_personal_url ? `<button type="button" class="chip" data-relay-clear>${esc(t('relay_clear_btn'))}</button>` : ''}
+        </div>
+        ${healthHtml}
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-txt"><b>${esc(t('relay_personal_only'))}</b><small>${esc(t('relay_personal_only_d'))}</small></div>
+      <label class="sw"><input type="checkbox" data-relay-toggle="personal_only"${rs.personal_only ? ' checked' : ''}${!rs.personal_enabled ? ' disabled' : ''}><i></i></label>
+    </div>
+    <p class="relay-note">${esc(t('relay_privacy_note'))}</p>
+  `;
+
+  const refreshAllRelayViews = () => {
+    if (!$('#settings').hidden && settingsCat === 'relay') renderRelayInto($('#set-pane'));
+    if ($('#login-relay-dlg')?.open) renderRelayInto($('#login-relay-mount'));
+  };
+
+  wrap.querySelector('[data-relay-eye]').onclick = e => {
+    const inp = wrap.querySelector('[data-relay-url]');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    e.currentTarget.innerHTML = ic(show ? 'i-eye-off' : 'i-eye');
+  };
+
+  wrap.querySelectorAll('[data-relay-toggle]').forEach(chk => {
+    chk.onchange = async () => {
+      const key = chk.dataset.relayToggle;
+      const val = chk.checked;
+      const typedUrl = wrap.querySelector('[data-relay-url]').value.trim();
+      const body = {[key]: val};
+      if (key === 'personal_enabled' && val && typedUrl) body.personal_url = typedUrl;
+      try {
+        relayState = await api('set_relay_settings', body);
+        toast(t('relay_saved'));
+      } catch (err) {
+        toast(err.message, 'err');
+      }
+      refreshAllRelayViews();
+    };
+  });
+
+  wrap.querySelector('[data-relay-save]').onclick = async () => {
+    const raw = wrap.querySelector('[data-relay-url]').value.trim();
+    if (!raw) {
+      wrap.querySelector('[data-relay-url]').focus();
+      return;
+    }
+    const btn = wrap.querySelector('[data-relay-save]');
+    btn.disabled = true;
+    try {
+      relayState = await api('set_relay_settings', {personal_url: raw, personal_enabled: true});
+      relayHealthStatus = null;
+      toast(t('relay_saved'));
+      refreshAllRelayViews();
+    } catch (err) {
+      toast(err.message, 'err');
+      btn.disabled = false;
+    }
+  };
+
+  wrap.querySelector('[data-relay-test]').onclick = async () => {
+    const raw = wrap.querySelector('[data-relay-url]').value.trim();
+    const btn = wrap.querySelector('[data-relay-test]');
+    btn.disabled = true;
+    btn.textContent = t('relay_testing');
+    try {
+      const res = await api('test_personal_relay', raw ? {personal_url: raw} : {});
+      const ms = res.elapsed_ms != null ? ` (${res.elapsed_ms} ms)` : '';
+      relayHealthStatus = {ok: Boolean(res.ok), text: (res.message || '') + ms};
+    } catch (err) {
+      relayHealthStatus = {ok: false, text: err.message};
+    } finally {
+      refreshAllRelayViews();
+    }
+  };
+
+  const clearBtn = wrap.querySelector('[data-relay-clear]');
+  if (clearBtn) {
+    clearBtn.onclick = async () => {
+      clearBtn.disabled = true;
+      try {
+        relayState = await api('clear_personal_relay', {});
+        relayHealthStatus = null;
+        toast(t('relay_cleared'));
+        refreshAllRelayViews();
+      } catch (err) {
+        toast(err.message, 'err');
+        clearBtn.disabled = false;
+      }
+    };
+  }
+
+  container.replaceChildren(wrap);
+}
+
+$('#open-login-relay').onclick = async () => {
+  await loadRelaySettings();
+  relayHealthStatus = null;
+  renderRelayInto($('#login-relay-mount'));
+  $('#login-relay-dlg').showModal();
+};
+$('#close-login-relay').onclick = () => $('#login-relay-dlg').close();
+$('#login-relay-dlg').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 function maybeAutoConnect() {
   if (autoTried) return; autoTried = true;
   const code = st.last_country;
@@ -759,6 +1274,11 @@ function renderSettings() {
   const pane = $('#set-pane'); if (!pane) return;
   $$('.set-nav [data-cat]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.cat === settingsCat)));
   $('#set-cat-title').textContent = t('set_cat_' + settingsCat);
+  if (settingsCat === 'relay') {
+    if (!relayState) loadRelaySettings().then(() => renderRelayInto(pane));
+    else renderRelayInto(pane);
+    return;
+  }
   const card = document.createElement('div'); card.className = 'set-card';
   SET_SCHEMA[settingsCat].forEach(item => card.appendChild(settingRow(item)));
   pane.replaceChildren(card);
@@ -784,7 +1304,7 @@ function renderSettingsState() {
   if (st.state !== 'connected') settingsRestart = false;
   const s = $('#settings'); if (!s || s.hidden) return;
   const tun = (st.connection || {}).mode === 'tun';
-  $('#set-tun-note').hidden = tun || settingsCat === 'general';
+  $('#set-tun-note').hidden = tun || settingsCat === 'general' || settingsCat === 'relay' || settingsCat === 'about';
   $('#set-restart').hidden = !settingsRestart;
 }
 async function saveSetting(key, value) {
@@ -1026,7 +1546,12 @@ applyLang(startupLang, false);
 (async () => {
   try {
     st = await api('status'); stAt = Date.now();
-    if (st.logged_in) showApp(); else showLogin(st.pending_code ? 'code' : undefined);
+    syncCaptchaModal(st.captcha_active ? st.captcha : null);
+    if (st.logged_in) showApp();
+    else {
+      const step = st.pending_code ? 'code' : (st.pending_unblock ? 'unblock' : undefined);
+      showLogin(step, st.pending_verification_method);
+    }
   } catch (e) { showLogin(); toast(e.message, 'err'); }
 })();
 

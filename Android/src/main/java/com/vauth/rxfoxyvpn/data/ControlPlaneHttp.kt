@@ -5,6 +5,7 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.vauth.rxfoxyvpn.data.relay.RelayRuntime
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -69,6 +70,11 @@ class SimpleCookieJar : CookieJar {
     }
 
     fun snapshotFor(url: HttpUrl): List<Cookie> = loadForRequest(url)
+
+    /** Clears all stored cookies (used when signing out or switching between accounts). */
+    fun clear() {
+        cookies.clear()
+    }
 }
 
 private class ProtectingSocketFactory : SocketFactory() {
@@ -120,13 +126,25 @@ object ControlPlaneHttp {
     // Use the platform trust store and OkHttp's default hostname verification.
     // The custom socket factory only protects VPN control-plane sockets from
     // being routed back through the VPN tunnel; it does not alter TLS trust.
-    val client: OkHttpClient by lazy {
+    //
+    // directClient is the original client, unchanged: it never contacts a relay. The relay, health and
+    // manifest clients, and the Fastly challenge solver, are derived from it.
+    val directClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .socketFactory(ProtectingSocketFactory())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    // The client every control-plane caller uses (FxA, Guardian, Remote Settings). Same connection pool and
+    // dispatcher as directClient; the only addition is the HTTP 451 / relay recovery interceptor, which acts only
+    // on allow-listed Mozilla hosts and only after a 451 or a failure to reach Mozilla.
+    val client: OkHttpClient by lazy {
+        directClient.newBuilder()
+            .addInterceptor(RelayRuntime.interceptor)
             .build()
     }
 }

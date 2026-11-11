@@ -104,7 +104,10 @@ func New(a *app.App, token string, port int) *Server {
 	}
 	s.get = map[string]apiFunc{
 		"status": a.Status, "servers": a.Servers, "saved_accounts": a.SavedAccounts,
-		"settings": a.GetSettings, "tun_log": a.TunLog,
+		"settings": a.GetSettings, "relay_settings": a.GetRelaySettings,
+		"announcements": a.GetAnnouncements, "captcha": a.CaptchaState,
+		"browser_login_status": a.BrowserLoginStatus,
+		"tun_log":              a.TunLog,
 		"update_check": func(ctx context.Context, _ app.Body) (any, error) {
 			return checkLatestRelease(ctx, s.version)
 		},
@@ -114,12 +117,21 @@ func New(a *app.App, token string, port int) *Server {
 		"install_update": func(ctx context.Context, _ app.Body) (any, error) {
 			return downloadAndLaunchInstaller(ctx, s.version)
 		},
-		"login": a.Login, "verify": a.Verify, "logout": a.Logout, "connect": a.Connect,
+		"login": a.Login, "verify": a.Verify, "unblock": a.SubmitUnblock,
+		"resend_code": a.ResendCode, "cancel_auth": a.CancelPendingAuth,
+		"captcha_submit": a.CaptchaSubmit, "captcha_refresh": a.CaptchaRefresh, "captcha_cancel": a.CaptchaCancel,
+		"browser_login_start":    a.BrowserLoginStart,
+		"browser_login_complete": a.BrowserLoginComplete,
+		"browser_login_cancel":   a.BrowserLoginCancel,
+		"logout":                 a.Logout, "connect": a.Connect,
 		"disconnect": a.Disconnect, "ping": a.Ping, "ping_all": a.PingAll,
 		"refresh_servers": a.RefreshServers, "open_url": a.OpenURL, "set_lang": a.SetLang,
 		"set_connection": a.SetConnection, "login_saved": a.LoginSaved,
 		"delete_saved_account": a.DeleteSavedAccount,
 		"set_settings":         a.SetSettings, "reset_settings": a.ResetSettings,
+		"set_relay_settings": a.SetRelaySettings, "clear_personal_relay": a.ClearPersonalRelay,
+		"test_personal_relay": a.TestPersonalRelay,
+		"ack_announcement":    a.AckAnnouncement,
 	}
 	return s
 }

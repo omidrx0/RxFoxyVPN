@@ -801,7 +801,7 @@ class RxFoxyVpnService : VpnService() {
 
             var currentPassExpiry: Long? = null
 
-            suspend fun dialUpstream(): Pair<com.vauth.rxfoxyvpn.vpn.upstream.H2UpstreamSession, Long?> {
+            suspend fun dialUpstream(bypassEdge: Boolean = false): Pair<com.vauth.rxfoxyvpn.vpn.upstream.H2UpstreamSession, Long?> {
                 val target = activeCandidate()
                 val pass = mintProxyPass()
                 currentPassExpiry = pass.expiresAtEpochSeconds
@@ -811,8 +811,13 @@ class RxFoxyVpnService : VpnService() {
                 } ?: " (lifetime not stated)"
                 AppLogger.i(TAG, "connect: acquired Guardian proxy pass$lifetimeNote")
 
-                val edgeAddress = customEdgeAddress
-                    ?: resolveEdgeAddress(target.host, upstreamProxyConfig, dohEndpointAddresses)
+                val edgeAddress = if (bypassEdge) {
+                    AppLogger.i(TAG, "dialUpstream: bypassing custom/resolved edge address due to previous TLS/certificate validation failure; dialing domain directly")
+                    null
+                } else {
+                    customEdgeAddress
+                        ?: resolveEdgeAddress(target.host, upstreamProxyConfig, dohEndpointAddresses)
+                }
 
                 val session = com.vauth.rxfoxyvpn.vpn.upstream.H2UpstreamSession(
                     target.host,
@@ -835,13 +840,14 @@ class RxFoxyVpnService : VpnService() {
 
             var dialAttempt = 0
             var lastDialFailure: Throwable? = null
+            var bypassCustomEdge = false
             while (true) {
                 dialAttempt++
                 ensureGenerationCurrent(myGeneration)
                 val target = activeCandidate()
 
                 val dialResult = try {
-                    withTimeout(CONNECT_TIMEOUT_MS) { dialUpstream() }
+                    withTimeout(CONNECT_TIMEOUT_MS) { dialUpstream(bypassEdge = bypassCustomEdge) }
                 } catch (cancellation: CancellationException) {
 
                     if (cancellation !is TimeoutCancellationException) throw cancellation
@@ -852,7 +858,14 @@ class RxFoxyVpnService : VpnService() {
 
                     if (isFatalUpstreamError(error)) throw error
                     lastDialFailure = error
-                    AppLogger.w(TAG, "dial to ${target.authority} failed (attempt $dialAttempt): ${error.message}")
+                    AppLogger.w(TAG, "dial to ${target.authority} failed (attempt $dialAttempt): ${error.javaClass.simpleName}: ${error.message}")
+                    
+                    if (error is javax.net.ssl.SSLHandshakeException || error.cause is javax.net.ssl.SSLHandshakeException ||
+                        error.message?.contains("CertPathValidatorException") == true ||
+                        error.message?.contains("handshake") == true ||
+                        error.message?.contains("Trust anchor") == true) {
+                        bypassCustomEdge = true
+                    }
                     null
                 }
 

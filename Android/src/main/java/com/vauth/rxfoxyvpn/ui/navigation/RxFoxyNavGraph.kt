@@ -1,6 +1,10 @@
 package com.vauth.rxfoxyvpn.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.vauth.rxfoxyvpn.ui.screens.BrowserSignInScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,6 +22,7 @@ import com.vauth.rxfoxyvpn.ui.theme.ThemeController
 object FoxyRoutes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
+    const val BROWSER_SIGNIN = "browser_signin"
     const val HOME = "home"
     const val SERVERS = "servers"
     const val SETTINGS = "settings"
@@ -51,6 +56,23 @@ fun RxFoxyNavGraph(
                 onSignedIn = {
                     navController.navigate(FoxyRoutes.HOME) { popUpTo(FoxyRoutes.LOGIN) { inclusive = true } }
                 },
+                onOpenBrowserSignIn = { email ->
+                    navController.navigate("${FoxyRoutes.BROWSER_SIGNIN}?email=${Uri.encode(email)}")
+                },
+            )
+        }
+        composable(
+            route = "${FoxyRoutes.BROWSER_SIGNIN}?email={email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType; defaultValue = "" }),
+        ) { entry ->
+            BrowserSignInScreen(
+                authRepository = app.authRepository,
+                initialEmail = entry.arguments?.getString("email").orEmpty(),
+                onSignedIn = {
+                    navController.navigate(FoxyRoutes.HOME) { popUpTo(FoxyRoutes.LOGIN) { inclusive = true } }
+                },
+                onUseDirectSignIn = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(FoxyRoutes.HOME) {
@@ -77,7 +99,7 @@ fun RxFoxyNavGraph(
                 onOpenAccount = { navController.navigate(FoxyRoutes.ACCOUNT) },
                 onSignOut = {
                     onDisconnect()
-                    app.tokenStore.clear()
+                    app.authRepository.signOut()
                     navController.navigate(FoxyRoutes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
                 onBack = { navController.popBackStack() },

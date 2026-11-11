@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	iphlpapi            = windows.NewLazySystemDLL("iphlpapi.dll")
+	iphlpapi             = windows.NewLazySystemDLL("iphlpapi.dll")
 	procGetBestInterface = iphlpapi.NewProc("GetBestInterface")
 )
 

@@ -49,6 +49,9 @@
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3.5v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6.5L12 3z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L21 10"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
   <symbol id="i-fox" viewBox="0 0 24 24"><path d="M12.6 2c.4 3-1 4.4-2.4 5.9C8.6 9.6 7 11.2 7 14a5 5 0 0 0 10 0c0-1.6-.7-2.8-1.6-3.8.1 1.2-.4 2.1-1.2 2.5.5-3.2-.4-7.300-1.6-10.7zM5 13.5C4 15 4 17 5 18.5c1.300 2 3.800 3.500 7 3.500s5.700-1.500 7-3.500c-1.500.8-3 .6-3.700.4C17.500 17 19 15 19 13c-1.500 3-3.500 3.500-5 3.500-2.800 0-4.500-1.500-4.500-3.600-1.600.8-3 .6-4.500.6z"/></symbol>
 </svg>
 
@@ -107,6 +110,11 @@
 
   <div class="login-side">
     <div class="card">
+      <div class="login-tabs" id="login-tabs" role="tablist">
+        <button type="button" role="tab" class="on" data-method="direct" aria-selected="true" data-i18n="login_tab_direct"></button>
+        <button type="button" role="tab" data-method="browser" aria-selected="false" data-i18n="login_tab_browser"></button>
+      </div>
+
       <form id="f-login" autocomplete="on">
         <h2 data-i18n="login_h"></h2>
         <p class="lead" data-i18n="login_lead"></p>
@@ -131,20 +139,74 @@
         <button class="btn" id="btn-login" type="submit"><span data-i18n="btn_login"></span></button>
       </form>
 
+      <div id="f-browser" class="browser-auth" hidden>
+        <h2 data-i18n="browser_h"></h2>
+        <p class="lead" data-i18n="browser_lead"></p>
+        <label class="fld"><span data-i18n="browser_email_opt"></span>
+          <div class="inp" dir="ltr"><svg class="i"><use href="#i-mail"/></svg><input id="browser-email" type="email" dir="ltr" autocomplete="username" placeholder="you@example.com"></div>
+        </label>
+        <div class="browser-ctas" id="browser-ctas">
+          <button class="btn" id="btn-browser-webview" type="button"><svg class="i"><use href="#i-globe"/></svg><span data-i18n="btn_browser_webview"></span></button>
+          <button class="ghost" id="btn-browser-external" type="button"><svg class="i"><use href="#i-link"/></svg><span data-i18n="btn_browser_external"></span></button>
+        </div>
+        <div class="browser-progress" id="browser-progress" hidden>
+          <div class="bp-head"><span class="bp-dot"></span><b id="browser-stage-txt"></b></div>
+          <div class="browser-paste" id="browser-paste-box" hidden>
+            <b class="bp-title" data-i18n="browser_paste_title"></b>
+            <small data-i18n="browser_paste_hint"></small>
+            <div class="inp" dir="ltr"><svg class="i"><use href="#i-link"/></svg><input id="browser-redirect-url" type="url" dir="ltr" data-i18n-ph="browser_paste_ph"></div>
+            <button class="btn" id="btn-browser-complete" type="button"><span data-i18n="btn_browser_complete"></span></button>
+          </div>
+          <button class="ghost" id="btn-browser-cancel" type="button"><span data-i18n="btn_cancel"></span></button>
+        </div>
+        <p class="err" id="err-browser" role="alert"></p>
+      </div>
+
       <form id="f-code" hidden>
-        <h2 data-i18n="code_h"></h2>
-        <p class="lead" data-i18n="code_lead"></p>
-        <label class="fld"><span data-i18n="code_label"></span>
+        <h2 id="code-title" data-i18n="code_h"></h2>
+        <p class="lead" id="code-lead" data-i18n="code_lead"></p>
+        <label class="fld"><span id="code-lbl" data-i18n="code_label"></span>
           <div class="inp" dir="ltr"><svg class="i"><use href="#i-key"/></svg><input id="code" dir="ltr" inputmode="numeric" autocomplete="one-time-code" required placeholder="123456"></div></label>
         <p class="err" id="err-code" role="alert"></p>
         <button class="btn" id="btn-code" type="submit"><span data-i18n="btn_code"></span></button>
-        <button class="link" id="code-back" type="button" data-i18n="back"></button>
+        <div class="step-links">
+          <button class="link" id="code-resend" type="button" data-i18n="resend_code"></button>
+          <button class="link" id="code-back" type="button" data-i18n="back"></button>
+        </div>
       </form>
 
-      <button class="link" id="open-signup" type="button" data-i18n="no_account"></button>
+      <form id="f-unblock" hidden>
+        <h2 data-i18n="unblock_h"></h2>
+        <p class="lead" data-i18n="unblock_lead"></p>
+        <label class="fld"><span data-i18n="unblock_label"></span>
+          <div class="inp" dir="ltr"><svg class="i"><use href="#i-shield"/></svg><input id="unblock-code" dir="ltr" autocomplete="one-time-code" required placeholder="ABCD1234"></div></label>
+        <p class="err" id="err-unblock" role="alert"></p>
+        <button class="btn" id="btn-unblock" type="submit"><span data-i18n="btn_unblock"></span></button>
+        <div class="step-links">
+          <button class="link" id="unblock-resend" type="button" data-i18n="resend_code"></button>
+          <button class="link" id="unblock-back" type="button" data-i18n="back"></button>
+        </div>
+      </form>
+
+      <div class="login-foot">
+        <button class="link" id="open-signup" type="button" data-i18n="no_account"></button>
+        <button class="chip relay-quick-btn" id="open-login-relay" type="button"><svg class="i" style="width:15px;height:15px"><use href="#i-shield"/></svg><span data-i18n="login_relay_btn"></span></button>
+      </div>
     </div>
   </div>
 </section>
+
+<dialog id="login-relay-dlg">
+  <div class="dlg relay-dlg">
+    <div class="dlg-head">
+      <h3><svg class="i"><use href="#i-shield"/></svg><span data-i18n="set_cat_relay"></span></h3>
+    </div>
+    <div id="login-relay-mount"></div>
+    <div class="actions">
+      <button class="ghost" id="close-login-relay" type="button" data-i18n="close"></button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="signup">
   <div class="dlg">
@@ -353,6 +415,7 @@
       <div class="set-shell">
         <nav class="set-nav" role="tablist">
           <button type="button" role="tab" data-cat="general"><span class="bi"><svg class="i"><use href="#i-sliders"/></svg></span><span class="tx"><b data-i18n="set_cat_general"></b><small data-i18n="set_cat_general_d"></small></span><svg class="i chev"><use href="#i-chev"/></svg></button>
+          <button type="button" role="tab" data-cat="relay"><span class="bi"><svg class="i"><use href="#i-shield"/></svg></span><span class="tx"><b data-i18n="set_cat_relay"></b><small data-i18n="set_cat_relay_d"></small></span><svg class="i chev"><use href="#i-chev"/></svg></button>
           <button type="button" role="tab" data-cat="routing"><span class="bi"><svg class="i"><use href="#i-route"/></svg></span><span class="tx"><b data-i18n="set_cat_routing"></b><small data-i18n="set_cat_routing_d"></small></span><svg class="i chev"><use href="#i-chev"/></svg></button>
           <button type="button" role="tab" data-cat="dns"><span class="bi"><svg class="i"><use href="#i-server"/></svg></span><span class="tx"><b data-i18n="set_cat_dns"></b><small data-i18n="set_cat_dns_d"></small></span><svg class="i chev"><use href="#i-chev"/></svg></button>
           <button type="button" role="tab" data-cat="inbound"><span class="bi"><svg class="i"><use href="#i-inbound"/></svg></span><span class="tx"><b data-i18n="set_cat_inbound"></b><small data-i18n="set_cat_inbound_d"></small></span><svg class="i chev"><use href="#i-chev"/></svg></button>
@@ -365,6 +428,46 @@
           <div id="set-pane"></div>
         </div>
       </div>
+    </div>
+  </section>
+</div>
+
+<div id="captcha-overlay" class="rx-update-overlay" hidden>
+  <section class="rx-update-dialog captcha-dialog" role="dialog" aria-modal="true" aria-labelledby="captcha-title">
+    <div class="rx-update-mark"><svg class="i"><use href="#i-shield"/></svg></div>
+    <div class="rx-update-kicker" data-i18n="captcha_kicker"></div>
+    <h2 id="captcha-title" data-i18n="captcha_h"></h2>
+    <p class="rx-update-subtitle" data-i18n="captcha_lead"></p>
+    <p class="captcha-notice" id="captcha-notice" hidden></p>
+    <div class="captcha-img-wrap">
+      <img id="captcha-img" alt="Security verification image">
+    </div>
+    <form id="f-captcha" class="captcha-form">
+      <div class="inp" dir="ltr">
+        <svg class="i"><use href="#i-key"/></svg>
+        <input id="captcha-answer" type="text" dir="ltr" autocomplete="off" spellcheck="false" data-i18n-ph="captcha_ph" required>
+      </div>
+      <p class="err" id="err-captcha" role="alert"></p>
+      <div class="captcha-actions">
+        <button type="button" class="ghost" id="btn-captcha-cancel" data-i18n="btn_cancel"></button>
+        <button type="button" class="ghost" id="btn-captcha-refresh"><svg class="i" style="width:16px;height:16px"><use href="#i-refresh"/></svg><span data-i18n="captcha_refresh"></span></button>
+        <button type="submit" class="primary" id="btn-captcha-submit" data-i18n="captcha_submit"></button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div id="ann-overlay" class="rx-update-overlay" hidden>
+  <section class="rx-update-dialog ann-dialog" role="dialog" aria-modal="true" aria-labelledby="ann-title">
+    <div class="ann-top">
+      <div class="rx-update-mark"><svg class="i"><use href="#i-bell"/></svg></div>
+      <span class="ann-badge" id="ann-counter"></span>
+    </div>
+    <div class="rx-update-kicker" data-i18n="ann_kicker"></div>
+    <h2 id="ann-title"></h2>
+    <div class="rx-update-notes ann-body" id="ann-message"></div>
+    <div class="rx-update-actions">
+      <button type="button" class="primary" id="btn-ann-ack" data-i18n="ann_ack"></button>
     </div>
   </section>
 </div>

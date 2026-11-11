@@ -736,3 +736,64 @@ html[lang=ru],html[lang=zh],html[lang=en]{font-family:"Sora","Segoe UI",Arial,sa
 
 /* In-app update download screen: no browser tabs or native download UI. */
 .rx-download-dialog{text-align:center;padding:34px 30px}.rx-download-dialog .rx-update-mark{margin:0 auto}.rx-download-spinner{width:46px;height:46px;margin:0 auto 20px;border:3px solid rgba(178,151,255,.18);border-top-color:#bba1ff;border-right-color:#8e6aff;border-radius:50%;animation:rxDownloadSpin .8s linear infinite}.rx-download-dialog .rx-update-kicker{margin-top:0}.rx-download-dialog h2{margin-top:12px}.rx-download-track{height:5px;overflow:hidden;margin-top:24px;border-radius:99px;background:rgba(255,255,255,.08)}.rx-download-track span{display:block;width:0%;height:100%;border-radius:99px;background:linear-gradient(90deg,#7354df,#e06bd8,#8c9dff);transition:width .18s ease}.rx-download-percent{margin-top:12px;color:#c4b4ff;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}@keyframes rxDownloadSpin{to{transform:rotate(360deg)}}@keyframes rxDownloadSweep{0%{transform:translateX(-110%)}100%{transform:translateX(290%)}}
+
+/* ======================================================== Login method tabs, Browser Sign-In, 2FA/Unblock, CAPTCHA, Relay & 4-State Quota */
+.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;margin-bottom:16px;border-radius:14px;background:rgba(8,10,32,.68);border:1px solid var(--line)}
+.login-tabs button{border:0;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;color:var(--mute);background:transparent;transition:all .22s var(--ease)}
+.login-tabs button:hover{color:var(--text)}
+.login-tabs button.on{color:#fff;background:var(--grad);box-shadow:0 6px 20px rgba(139,92,246,.38)}
+
+.browser-auth{display:grid;gap:14px}
+.browser-auth h2{margin:0;font-size:23px}
+.browser-auth .lead{margin:0;color:var(--mute);font-size:13.5px}
+.browser-ctas{display:grid;gap:10px;margin-top:4px}
+.browser-ctas .ghost{justify-content:center;padding:12px 16px}
+.browser-progress{display:grid;gap:12px;padding:14px;border-radius:14px;background:rgba(8,10,32,.66);border:1px solid rgba(56,217,255,.32)}
+.bp-head{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.bp-dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:bpPulse 1.3s ease-in-out infinite}
+@keyframes bpPulse{0%,100%{transform:scale(.85);opacity:.65}50%{transform:scale(1.18);opacity:1}}
+.browser-paste{display:grid;gap:9px;padding-top:10px;border-top:1px solid var(--line)}
+.browser-paste .bp-title{font-size:13px;color:#d6dcff}
+.browser-paste small{color:var(--mute);font-size:12px;line-height:1.55}
+.browser-progress .ghost{justify-content:center}
+
+.step-links{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px}
+.login-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.relay-quick-btn{color:#d8d2ff;border-color:rgba(139,92,246,.38);background:rgba(139,92,246,.1)}
+
+/* 4-state Guardian Quota styling */
+.quota.unlimited{border-color:rgba(52,224,161,.38);background:linear-gradient(135deg,rgba(20,46,52,.52),rgba(20,23,60,.58))}
+.quota.unlimited #quota-value{color:var(--good);text-shadow:0 0 16px rgba(52,224,161,.35)}
+.quota.unlimited .quota-fill{background:linear-gradient(90deg,#1ec98e,#34e0a1,#7efad0)}
+.quota.error{border-color:rgba(255,184,107,.35)}
+.quota.error #quota-value{color:var(--warn)}
+
+/* Interactive Fastly CAPTCHA Modal */
+.captcha-dialog{max-width:460px}
+.captcha-notice{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(255,184,107,.12);border:1px solid rgba(255,184,107,.38);color:var(--warn);font-size:12.5px}
+.captcha-img-wrap{margin:14px 0;padding:12px;min-height:92px;display:grid;place-items:center;border-radius:14px;background:#ffffff;border:1px solid rgba(168,124,255,.35);overflow:hidden}
+.captcha-img-wrap img{max-width:100%;max-height:140px;object-fit:contain;display:block}
+.captcha-form{display:grid;gap:10px}
+.captcha-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px}
+.captcha-actions button{min-height:40px;padding:0 14px;border-radius:11px;font-weight:700}
+.captcha-actions .primary{border:1px solid rgba(188,151,255,.65);background:var(--grad);color:#fff}
+
+/* Sequential Announcements Modal */
+.ann-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ann-badge{padding:4px 10px;border-radius:99px;font-size:11.5px;font-weight:700;color:#d8d0ff;background:rgba(139,92,246,.2);border:1px solid rgba(168,124,255,.35)}
+.ann-body{font-family:var(--font);font-size:13.5px;line-height:1.75;max-height:260px}
+
+/* Relay Server Settings Card & Login Dialog */
+.relay-dlg{width:min(560px,94vw);max-height:84vh;overflow:auto}
+.relay-dlg .dlg-head h3{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.relay-panel{display:grid;gap:14px}
+.relay-host-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;font-size:12.5px;font-weight:600;background:rgba(56,217,255,.09);border:1px solid rgba(56,217,255,.28);color:#bdefff;direction:ltr;unicode-bidi:isolate}
+.relay-host-pill.off{background:rgba(255,255,255,.04);border-color:var(--line);color:var(--mute);direction:inherit}
+.relay-url-editor{display:grid;gap:10px;width:100%;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.relay-url-editor small{color:var(--mute);font-size:11.5px;line-height:1.55}
+.relay-btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.relay-health-out{padding:9px 12px;border-radius:10px;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:rgba(8,10,32,.6)}
+.relay-health-out.ok{border-color:rgba(52,224,161,.45);background:rgba(52,224,161,.1);color:var(--good)}
+.relay-health-out.err{border-color:rgba(255,92,122,.45);background:rgba(255,92,122,.1);color:var(--bad)}
+.relay-note{margin:0;padding:12px 14px;border-radius:12px;font-size:12px;line-height:1.65;color:var(--mute);background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.24)}
+

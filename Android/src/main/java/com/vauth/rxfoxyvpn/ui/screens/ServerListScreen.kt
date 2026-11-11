@@ -18,12 +18,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -268,7 +273,11 @@ fun ServerListScreen(
         }
     }
 
-    Scaffold(containerColor = Color.Transparent) { padding ->
+    // Like Settings/Home: content draws under the status bar; the header itself pads for it.
+    Scaffold(
+        containerColor = Color.Transparent,
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.exclude(WindowInsets.statusBars),
+    ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             ListBackground()
 
@@ -278,15 +287,21 @@ fun ServerListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF080A20).copy(alpha = 0.55f))
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = RxList.Text)
+                    IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = RxList.Text,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                     Text(
                         LanguageManager.t("servers", "سرورها"),
-                        color = RxList.Text, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp,
+                        color = RxList.Text, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
                     )
                     if (countries.isNotEmpty()) {
                         Spacer(Modifier.width(8.dp))

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's connect orb as an animated vector: an indeterminate ProgressBar starts its Animatable
+     drawable by itself, which is how a widget (RemoteViews) can run a vector animation. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ProgressBar
+        android:id="@+id/widget_button"
+        style="@null"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:indeterminate="true"
+        android:indeterminateDrawable="@drawable/orb_ready_avd"
+        android:indeterminateOnly="true"
+        android:indeterminateTint="@null"
+        android:minWidth="40dp"
+        android:minHeight="40dp"
+        android:maxWidth="300dp"
+        android:maxHeight="300dp" />
+</FrameLayout>

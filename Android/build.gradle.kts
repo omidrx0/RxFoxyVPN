@@ -47,10 +47,29 @@ android {
 
     defaultConfig {
         applicationId = "com.vauth.rxfoxyvpn"
-minSdk = 26
+        minSdk = 26
         targetSdk = 35
         versionCode = 3
-        versionName = "1.0.4"
+        versionName = "1.0.5"
+
+        buildConfigField(
+            "String",
+            "MANIFEST_PRIMARY_URL",
+            "\"https://raw.githubusercontent.com/arman-org/update-manifests/main/arman-vpn-client/updates.json\"",
+        )
+        buildConfigField(
+            "String",
+            "MANIFEST_FALLBACK_URL",
+            "\"https://cdn.jsdelivr.net/gh/arman-org/update-manifests@main/arman-vpn-client/updates.json\"",
+        )
+        val sharedRelaySecret = (project.findProperty("SHARED_RELAY_SECRET") as? String)
+            ?: System.getenv("RXFOXY_SHARED_RELAY_SECRET")
+            ?: ""
+        buildConfigField(
+            "String",
+            "SHARED_RELAY_SECRET",
+            "\"${sharedRelaySecret.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
 
         externalNativeBuild {
             ndkBuild {
@@ -130,6 +149,15 @@ minSdk = 26
         abortOnError = false
     }
 
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            all {
+                it.maxHeapSize = "256m"
+            }
+        }
+    }
+
     packaging {
         resources.excludes.add("META-INF/INDEX.LIST")
         resources.excludes.add("META-INF/*.SF")
@@ -159,6 +187,9 @@ dependencies {
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // Browser Sign-in: origin-restricted WebMessageListener for Mozilla's WebChannel bridge.
+    implementation("androidx.webkit:webkit:1.12.1")
+
     implementation("io.netty:netty-handler:4.1.115.Final")
     implementation("io.netty:netty-codec-http2:4.1.115.Final")
     implementation("io.netty:netty-transport:4.1.115.Final")
@@ -169,6 +200,10 @@ dependencies {
     implementation("com.caverock:androidsvg-aar:1.4")
 
     testImplementation("junit:junit:4.13.2")
+    // The Android SDK's org.json is a stub in local unit tests; use the real implementation there.
+    testImplementation("org.json:json:20240303")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

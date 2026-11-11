@@ -32,3 +32,5 @@ func FlagDir() string             { return filepath.Join(DataDir(), "flags") }
 func TunConfigPath() string       { return filepath.Join(DataDir(), "tun", "config.json") }
 func WebViewDataDir() string      { return filepath.Join(DataDir(), "webview2") }
 func ExtractedRuntimeDir() string { return filepath.Join(DataDir(), "runtime") }
+func RelayConfigPath() string     { return filepath.Join(DataDir(), "relay.json") }
+func AnnouncementsPath() string   { return filepath.Join(DataDir(), "announcements_ack.json") }
