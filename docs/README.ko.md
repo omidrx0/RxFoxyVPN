@@ -1,0 +1,196 @@
+<div align="center">
+
+<img src="https://i.ibb.co/hRqy6VRz/rx-logo.png" alt="RXFoxyVPN 로고" width="140">
+
+# RXFoxyVPN
+
+**당신의 자유가 우리의 우선순위입니다.**
+
+빠르고 깔끔하며 다국어를 지원하는 **Android** 및 **Windows**용 VPN 클라이언트입니다.
+
+<br>
+
+[![Version](https://img.shields.io/badge/version-v1.0.5-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
+[![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
+
+<br>
+
+[**다운로드**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) · [소스 코드](https://github.com/omidrx0/RxFoxyVPN)
+
+[English](../README.md) · [فارسی](README.fa.md) · [Русский](README.ru.md) · [简体中文](README.zh.md) · **한국어** · [العربية](README.ar.md)
+
+</div>
+
+---
+
+## 소개
+
+RXFoxyVPN은 **Android**와 **Windows**를 위한 크로스 플랫폼 프로젝트로, 사용자의 언어를 지원하는 간결하고 일관된 인터페이스를 제공합니다. 이 저장소에는 소스 코드와 문서가 있으며, 바로 사용할 수 있는 빌드는 [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) 페이지에 게시됩니다.
+
+### v1.0.5 변경 사항
+**안정성 개선, Relay 관리 및 새 기능**
+
+- 로그인 및 CAPTCHA 처리 개선.
+- 세션, 구독 용량 및 서버 데이터 관련 문제 수정.
+- GitHub 기반 Manifest Relay 관리 및 온라인 공지 기능 추가.
+- 위젯, 빠른 설정 및 오류 처리 개선.
+- 무제한 구독 표시(∞) 지원.
+
+## 주요 기능
+
+| Android | Windows |
+| --- | --- |
+| 연결을 관리하는 네이티브 VPN 서비스 | 시스템 트레이 통합을 지원하는 데스크톱 UI |
+| 홈, 서버 목록, 설정 화면 | 데스크톱 셸 안에서 동작하는 웹 기반 UI |
+| Android 8.0 이상 지원 | 시스템 전체 TUN 모드 및 시스템 프록시 지원 |
+
+**두 플랫폼 공통:** 영어, 페르시아어, 러시아어, 중국어 간체, 한국어, 아랍어 인터페이스를 지원합니다.
+
+## 스크린샷
+
+### Windows
+
+<div align="center">
+  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="Windows용 RXFoxyVPN" width="88%">
+</div>
+
+### Android
+
+최소 지원 버전: **Android 8.0**.
+
+<div align="center">
+  <table width="100%">
+    <tr>
+      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android 홈 화면" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android 서버 목록" width="100%"></a></td>
+      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android 설정 화면" width="100%"></a></td>
+    </tr>
+    <tr>
+      <td align="center"><sub><b>홈</b></sub></td>
+      <td align="center"><sub><b>서버 목록</b></sub></td>
+      <td align="center"><sub><b>설정</b></sub></td>
+    </tr>
+  </table>
+</div>
+
+## 다운로드 · v1.0.5
+
+최신 빌드는 <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5"><b>GitHub Releases</b></a>에서 받거나, 기기에 맞는 패키지를 선택하세요.
+
+<table>
+  <thead>
+    <tr>
+      <th align="center">플랫폼</th>
+      <th align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;다운로드&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5" align="center" valign="middle">
+        <img src="https://img.shields.io/badge/-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android"><br>
+        <sub>Android 8.0 이상</sub>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-universal-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <b>잘 모르겠다면 이것을 선택하세요.</b> ⭐<br><sub>모든 기기와 아키텍처에서 작동합니다.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-arm64-v8a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        최신 휴대폰과 태블릿.<br><sub>64비트 ARM 프로세서.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-armeabi-v7a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        오래된 Android 기기.<br><sub>32비트 ARM 프로세서.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86_64-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        Intel/AMD 기기 및 에뮬레이터.<br><sub>64비트.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        Intel/AMD 기기 및 에뮬레이터.<br><sub>32비트.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td rowspan="2" align="center" valign="middle">
+        <img src="https://img.shields.io/badge/-Windows-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows"><br>
+        <sub>Windows 10 이상</sub>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <b>64비트 PC용 표준 설치 프로그램.</b> ⭐<br><sub>바로가기를 만들고 쉽게 제거할 수 있습니다.</sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        설치가 필요 없습니다.<br><sub>ZIP을 풀고 실행하세요.</sub>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+> [!TIP]
+> 어떤 Android 아키텍처가 필요한지 모르겠다면 **Universal**을 선택하세요. Android에서 요청하면 브라우저 또는 파일 관리자의 설치를 허용하세요.
+
+> [!NOTE]
+> 저장소나 릴리스가 보이지 않는다면 접근이 제한되어 있을 수 있습니다. 관리자에게 접근 권한을 요청하세요.
+
+## 소스에서 빌드
+
+<details>
+<summary>빌드 방법 보기</summary>
+
+<br>
+
+저장소를 클론합니다:
+
+```bash
+git clone https://github.com/omidrx0/RxFoxyVPN.git
+cd RxFoxyVPN
+```
+
+- **Android**: Android Studio에서 `Android/` 폴더를 열고 Gradle 동기화가 끝나길 기다린 뒤(필요한 JDK 및 Android SDK 버전은 Gradle 설정 확인) 앱을 실행하거나 *Build → Build APK(s)*를 사용하세요.
+- **Windows**: 새 Windows 앱은 Go로 작성되었습니다. 저장소의 Windows 소스 코드와 빌드 안내를 확인하고, 프로젝트 설정에 명시된 Go 및 웹 UI 빌드 요구 사항을 따르세요.
+
+빌드 절차는 환경에 따라 다를 수 있으며, 저장소의 설정 파일이 기준입니다.
+
+</details>
+
+## 프로젝트 구조
+
+```text
+Android/    Android 앱 (Kotlin / Gradle)
+Windows/    Windows 앱 (Go / 웹 UI)
+docs/       번역된 README 파일
+```
+
+## 기여하기
+
+제안, 버그 신고, Pull Request를 환영합니다. 큰 변경은 먼저 Issue를 열어 방향을 논의해 주세요.
+
+## 라이선스
+
+사용 및 재배포 조건은 저장소의 `LICENSE` 파일에 따릅니다. 해당 파일이 없으면 모든 권리는 저작자에게 있습니다.
+
+---
+
+<div align="center">
+
+<sub>**RXFoxyVPN** · Android 및 Windows · [GitHub 저장소](https://github.com/omidrx0/RxFoxyVPN)</sub>
+
+<sub><i>당신의 자유가 우리의 우선순위입니다.</i></sub>
+
+</div>
