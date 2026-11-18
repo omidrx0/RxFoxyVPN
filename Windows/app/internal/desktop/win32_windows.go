@@ -21,6 +21,7 @@ var (
 	pDefWindowProc         = user32.NewProc("DefWindowProcW")
 	pSetWindowPos          = user32.NewProc("SetWindowPos")
 	pGetWindowRect         = user32.NewProc("GetWindowRect")
+	pGetClientRect         = user32.NewProc("GetClientRect")
 	pGetCursorPos          = user32.NewProc("GetCursorPos")
 	pGetAsyncKeyState      = user32.NewProc("GetAsyncKeyState")
 	pGetSystemMetrics      = user32.NewProc("GetSystemMetrics")
@@ -62,6 +63,8 @@ const (
 	wsCaption    = 0x00C00000
 	wsThickFrame = 0x00040000
 	wsMaximize   = 0x00010000
+	wsChild      = 0x40000000
+	wsVisible    = 0x10000000
 
 	swpNoSize       = 0x0001
 	swpNoMove       = 0x0002
@@ -155,6 +158,12 @@ func setWindowLongPtr(hwnd, index, value uintptr) uintptr {
 func getWindowRect(hwnd uintptr) rect {
 	var r rect
 	pGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&r)))
+	return r
+}
+
+func getClientRect(hwnd uintptr) rect {
+	var r rect
+	pGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&r)))
 	return r
 }
 

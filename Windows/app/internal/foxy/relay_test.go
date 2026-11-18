@@ -131,8 +131,8 @@ func TestManifestParsingStickinessCooldownAndAnnouncements(t *testing.T) {
 	mgr, err := NewSharedRelayManager(TLSOptions{}, func() RelayConfig {
 		return RelayConfig{
 			SharedEnabled:            true,
-			ManifestPrimaryOverride:  "https://primary.test/updates.json",
-			ManifestFallbackOverride: "https://mirror.test/updates.json",
+			ManifestPrimaryOverride:  "https://raw.githubusercontent.com/test/primary/updates.json",
+			ManifestFallbackOverride: "https://cdn.jsdelivr.net/gh/test/mirror/updates.json",
 		}
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func TestManifestParsingStickinessCooldownAndAnnouncements(t *testing.T) {
 	mgr.now = func() time.Time { return now }
 	mgr.client = &http.Client{
 		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-			if r.URL.Host == "primary.test" {
+			if r.URL.Host == "raw.githubusercontent.com" {
 				primaryCalls.Add(1)
 				return fakeResponse(r, 503, "unavailable"), nil
 			}

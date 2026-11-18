@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +21,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import com.vauth.rxfoxyvpn.ui.icons.FoxyIcons
 
 private val UpdateBg = Color(0xFF0B0D25)
 private val UpdateViolet = Color(0xFF8B5CF6)
@@ -105,7 +105,7 @@ internal fun AndroidUpdateDialog(onDismiss: () -> Unit) {
         shape = RoundedCornerShape(28.dp),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Default.SystemUpdateAlt, null, tint = UpdateViolet, modifier = Modifier.size(26.dp))
+                Icon(FoxyIcons.SystemUpdateAlt, null, tint = UpdateViolet, modifier = Modifier.size(26.dp))
                 Text(updateText(lang, "title"), fontWeight = FontWeight.Bold)
             }
         },
@@ -202,7 +202,7 @@ internal fun AutomaticUpdatePrompt() {
             shape = RoundedCornerShape(28.dp),
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Default.SystemUpdateAlt, null, tint = UpdateViolet, modifier = Modifier.size(26.dp))
+                    Icon(FoxyIcons.SystemUpdateAlt, null, tint = UpdateViolet, modifier = Modifier.size(26.dp))
                     Text(updateText(lang, "title"), fontWeight = FontWeight.Bold)
                 }
             },

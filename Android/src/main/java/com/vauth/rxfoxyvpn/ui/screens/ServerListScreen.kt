@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -34,9 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,7 +68,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.vauth.rxfoxyvpn.R
+import com.vauth.rxfoxyvpn.RxFoxyVpnApp
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.LocalAppLanguage
 import com.vauth.rxfoxyvpn.data.ProxyStateStore
@@ -84,6 +85,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.vauth.rxfoxyvpn.ui.icons.FoxyIcons
 
 /* Design tokens from the Windows web UI (same values as HomeScreen.kt) */
 private object RxList {
@@ -157,6 +159,8 @@ fun ServerListScreen(
     val activeLang = LocalAppLanguage.current
     val langState by LanguageManager.currentLang.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val app = context.applicationContext as RxFoxyVpnApp
 
     val pingResults = remember { mutableStateMapOf<String, Int>() }
     val pingStates = remember { mutableStateMapOf<String, CountryPingState>() }
@@ -231,7 +235,22 @@ fun ServerListScreen(
                 withContext(Dispatchers.Main) { pingStates[cCode] = CountryPingState.FAILED }
                 return@launch
             }
-            val result = PingUtil.measureTcpLatencyMs(candidate.host, candidate.port)
+            // Real path via generate_204 when tunnel is up and this is the active country.
+            val selectedCode = selectedState?.countryCode
+            val result = if (
+                vpnState == ConnectionState.CONNECTED &&
+                selectedCode != null &&
+                selectedCode.equals(cCode, ignoreCase = true)
+            ) {
+                PingUtil.measurePreferredMs(
+                    host = candidate.host,
+                    port = candidate.port,
+                    tunnelSocksPort = app.settingsStore.socksPort,
+                    probeUrl = app.settingsStore.latencyProbeUrl,
+                )
+            } else {
+                PingUtil.measureTcpLatencyMs(candidate.host, candidate.port)
+            }
             withContext(Dispatchers.Main) {
                 if (result != null) {
                     pingResults[cCode] = result
@@ -248,19 +267,33 @@ fun ServerListScreen(
         isPingingAll = true
         scope.launch(Dispatchers.IO) {
             val targets = uiModels.filter { !it.isRecommended }
+            val selectedCode = selectedState?.countryCode
             val deferreds = targets.map { model ->
                 async {
                     val cCode = model.country.code
                     val candidate = ServerListClient.candidatesForCountry(countries, cCode).firstOrNull()
                     val result = if (candidate != null) {
-                        PingUtil.measureTcpLatencyMs(candidate.host, candidate.port)
+                        if (
+                            vpnState == ConnectionState.CONNECTED &&
+                            selectedCode != null &&
+                            selectedCode.equals(cCode, ignoreCase = true)
+                        ) {
+                            PingUtil.measurePreferredMs(
+                                host = candidate.host,
+                                port = candidate.port,
+                                tunnelSocksPort = app.settingsStore.socksPort,
+                                probeUrl = app.settingsStore.latencyProbeUrl,
+                            )
+                        } else {
+                            PingUtil.measureTcpLatencyMs(candidate.host, candidate.port)
+                        }
                     } else null
                     cCode to result
                 }
             }
-            val results = deferreds.awaitAll()
+            val results = deferreds.map { it.await() }
             withContext(Dispatchers.Main) {
-                for ((cCode, result) in results) {
+                results.forEach { (cCode, result) ->
                     if (result != null) {
                         pingResults[cCode] = result
                         pingStates[cCode] = CountryPingState.DONE
@@ -294,7 +327,7 @@ fun ServerListScreen(
                     IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = LanguageManager.t("back", "Back"),
                             tint = RxList.Text,
                             modifier = Modifier.size(20.dp),
                         )
@@ -368,8 +401,8 @@ fun ServerListScreen(
                         )
                         else -> LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(shownModels, key = { it.country.code }) { model ->
                                 val cCode = model.country.code
@@ -458,7 +491,7 @@ private fun Chip(
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = RxList.Pink)
                 Spacer(Modifier.width(6.dp))
             } else if (icon) {
-                Icon(Icons.Filled.Speed, contentDescription = null, tint = RxList.Cyan, modifier = Modifier.size(14.dp))
+                Icon(FoxyIcons.Speed, contentDescription = null, tint = RxList.Cyan, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
             }
             Text(text, color = RxList.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -504,7 +537,7 @@ private fun LiveTag(text: String) {
 }
 
 @Composable
-private fun FlagCircle(model: CountryUiModel, size: Dp = 38.dp) {
+private fun FlagCircle(model: CountryUiModel, size: Dp = 48.dp) {
     if (model.isRecommended) {
         Box(
             modifier = Modifier
@@ -514,7 +547,7 @@ private fun FlagCircle(model: CountryUiModel, size: Dp = 38.dp) {
                 .border(1.5.dp, RxList.Line2, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Public, contentDescription = null, tint = RxList.Cyan, modifier = Modifier.size(22.dp))
+            Icon(FoxyIcons.Public, contentDescription = null, tint = RxList.Cyan, modifier = Modifier.size(26.dp))
         }
     } else {
         CountryFlag(countryCode = model.country.code, size = size)
@@ -530,35 +563,37 @@ private fun ServerRow(
     onSelected: () -> Unit,
     onTestPing: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(16.dp)
     val selectedBg = Brush.linearGradient(
         listOf(RxList.Blue.copy(alpha = 0.16f), RxList.Violet.copy(alpha = 0.16f), RxList.Pink.copy(alpha = 0.10f))
     )
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 72.dp)
             .clip(shape)
-            .then(if (model.isSelected) Modifier.background(selectedBg) else Modifier)
-            .border(1.dp, if (model.isSelected) RxList.Violet.copy(alpha = 0.55f) else Color.Transparent, shape)
+            .background(RxList.Panel.copy(alpha = 0.55f), shape)
+            .then(if (model.isSelected) Modifier.background(selectedBg, shape) else Modifier)
+            .border(1.dp, if (model.isSelected) RxList.Violet.copy(alpha = 0.55f) else RxList.Line, shape)
             .clickable(onClick = onSelected)
-            .padding(horizontal = 11.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FlagCircle(model)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 model.localizedName,
-                color = RxList.Text, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                color = RxList.Text, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Text(
                 model.subText,
-                color = RxList.Mute, fontSize = 12.sp,
+                color = RxList.Mute, fontSize = 13.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (live) LiveTag(LanguageManager.t("live", "فعال"))
 
@@ -570,7 +605,7 @@ private fun ServerRow(
                     CountryPingState.DONE -> if (pingMs != null) {
                         val color = qualityColor(pingMs)
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text("$pingMs", color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("$pingMs", color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(Modifier.width(3.dp))
                             Text("ms", color = color, fontSize = 10.5.sp, modifier = Modifier.padding(bottom = 1.dp))
                         }

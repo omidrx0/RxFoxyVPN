@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"rxvpn/internal/config"
 	"rxvpn/internal/foxy"
 	"rxvpn/internal/locale"
+	"rxvpn/internal/logx"
 	"rxvpn/internal/platform"
 	"rxvpn/internal/tun"
 )
@@ -69,7 +71,20 @@ func (a *App) SetSettings(_ context.Context, body Body) (any, error) {
 		}
 	}
 	engineChanged := config.EngineChanged(updated, current)
+	if updated.RotationPct != current.RotationPct {
+		a.applyPoolPolicy(updated.RotationPct)
+	}
+	if updated.DirectDNS != current.DirectDNS {
+		if err := a.cp.SetBrowserSignInDNS(updated.DirectDNS); err != nil {
+			return nil, err
+		}
+	}
 	if err := config.SaveSettings(updated); err != nil {
+		if updated.DirectDNS != current.DirectDNS {
+			if restoreErr := a.cp.SetBrowserSignInDNS(current.DirectDNS); restoreErr != nil {
+				return nil, errors.Join(err, fmt.Errorf("restore browser sign-in DNS: %w", restoreErr))
+			}
+		}
 		return nil, err
 	}
 	a.mu.Lock()
@@ -89,15 +104,23 @@ func (a *App) ResetSettings(context.Context, Body) (any, error) {
 	defaults := config.DefaultSettings()
 	a.mu.RLock()
 	hadAutostart := a.settings.Autostart
+	currentDNS := a.settings.DirectDNS
 	a.mu.RUnlock()
 	if hadAutostart {
 		if err := a.applyAutostart(false); err != nil {
 			return nil, err
 		}
 	}
-	if err := config.SaveSettings(defaults); err != nil {
+	if err := a.cp.SetBrowserSignInDNS(defaults.DirectDNS); err != nil {
 		return nil, err
 	}
+	if err := config.SaveSettings(defaults); err != nil {
+		if restoreErr := a.cp.SetBrowserSignInDNS(currentDNS); restoreErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("restore browser sign-in DNS: %w", restoreErr))
+		}
+		return nil, err
+	}
+	a.applyPoolPolicy(defaults.RotationPct)
 	a.mu.Lock()
 	a.settings = defaults
 	connected, mode := a.connected, a.connSettings.Mode
@@ -347,13 +370,31 @@ func (a *App) TunLog(context.Context, Body) (any, error) {
 	if len(lines) > 300 {
 		lines = lines[len(lines)-300:]
 	}
-	return map[string]any{"text": strings.Join(lines, "\n"), "path": path, "exists": true}, nil
+	// the log is shown in the UI verbatim: strip anything token-shaped first (W-29/W-33)
+	return map[string]any{"text": logx.Scrub(strings.Join(lines, "\n")), "path": path, "exists": true}, nil
 }
 
-// OpenURL opens a Firefox Accounts page in the browser (nothing else is allowed).
+// ClearTunLog truncates the sing-box log file. While sing-box holds the file open the OS may
+// refuse; the user then sees a friendly note instead of a broken connection.
+func (a *App) ClearTunLog(context.Context, Body) (any, error) {
+	path := config.TunLogPath()
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return nil, apierr.New(locale.Tr("گزارش هنوز توسط sing-box قفل شده است؛ بعداً دوباره امتحان کنید.",
+			"The log is still locked by the VPN engine; try again later."))
+	}
+	_ = f.Close()
+	return map[string]any{"ok": true}, nil
+}
+
+// OpenURL opens an allow-listed page in the system browser: the Firefox Accounts pages, or the
+// RxFoxyVPN GitHub Releases pages (used by «Check for updates», which must never download or
+// run anything itself — the user downloads and installs manually).
 func (a *App) OpenURL(_ context.Context, body Body) (any, error) {
 	url := str(body["url"])
-	if !strings.HasPrefix(url, "https://accounts.firefox.com/") {
+	allowed := strings.HasPrefix(url, "https://accounts.firefox.com/") ||
+		strings.HasPrefix(url, "https://github.com/omidrx0/RxFoxyVPN/releases")
+	if !allowed {
 		return nil, apierr.New("forbidden", 403)
 	}
 	if err := platform.OpenURL(url); err != nil {

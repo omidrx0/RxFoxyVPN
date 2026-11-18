@@ -373,6 +373,34 @@ func parseStrictBool(v any) (bool, bool) {
 	return false, false
 }
 
+// parseQuotaReset reads the X-Quota-Reset header (unix seconds or an RFC3339 instant).
+func parseQuotaReset(h http.Header) string {
+	return strings.TrimSpace(h.Get("X-Quota-Reset"))
+}
+
+// ParseQuotaReset parses a Guardian quota-reset value (unix seconds or RFC3339). Zero value on failure.
+func ParseQuotaReset(raw string) time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}
+	}
+	var n int64
+	if _, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		n, _ = strconv.ParseInt(raw, 10, 64)
+		if n > 1_000_000_000_000 {
+			return time.UnixMilli(n)
+		}
+		return time.Unix(n, 0).UTC()
+	}
+	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t
+	}
+	return time.Time{}
+}
+
 func parseTokenQuotaHeaders(h http.Header) (unlimited bool, remaining, limit *int64, resetAt string) {
 	if strings.EqualFold(strings.TrimSpace(h.Get("X-Quota-Unlimited")), "true") {
 		return true, nil, nil, ""
@@ -453,11 +481,23 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 	if err != nil {
 		return QuotaInfo{State: QuotaStateError}, err
 	}
+	return a.fetchQuotaInfo(ctx, access, a.AccessToken, true)
+}
+
+// FetchQuotaForToken resolves Guardian quota for an ARBITRARY access token (pool account),
+// without writing anything into state.json when persist is false. refreshFn is used for the one
+// 401/403 retry and must return a usable access token. The QuotaInfo is returned either way; the
+// caller is responsible for persisting it (the account pool does this via ObserveUsage).
+func (a *Account) FetchQuotaForToken(ctx context.Context, access string, refreshFn func(ctx context.Context, force bool) (string, error), persist bool) (QuotaInfo, error) {
+	return a.fetchQuotaInfo(ctx, access, refreshFn, persist)
+}
+
+func (a *Account) fetchQuotaInfo(ctx context.Context, access string, refreshFn func(ctx context.Context, force bool) (string, error), persist bool) (QuotaInfo, error) {
 
 	// 1. GET /api/v1/fpn/status (retrying once with refreshed token on 401/403).
 	statusResp, statusErr := a.guardian(ctx, "GET", "/api/v1/fpn/status", access)
 	if statusErr == nil && (statusResp.Status == 401 || statusResp.Status == 403) {
-		if refreshed, rErr := a.AccessToken(ctx, true); rErr == nil {
+		if refreshed, rErr := refreshFn(ctx, true); rErr == nil {
 			access = refreshed
 			statusResp, statusErr = a.guardian(ctx, "GET", "/api/v1/fpn/status", access)
 		}
@@ -525,7 +565,9 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 			State:      QuotaStateUnlimited,
 			Subscribed: st.subscribed,
 		}
-		a.SetQuotaInfo(info)
+		if persist {
+			a.SetQuotaInfo(info)
+		}
 		return info, nil
 	}
 
@@ -541,7 +583,9 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 			UsedBytes:      &used,
 			ResetAt:        tokReset,
 		}
-		a.SetQuotaInfo(info)
+		if persist {
+			a.SetQuotaInfo(info)
+		}
 		return info, nil
 	}
 	if tokStatus == http.StatusTooManyRequests && st.maxBytes != nil && *st.maxBytes > 0 {
@@ -556,7 +600,9 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 			UsedBytes:      &used,
 			ResetAt:        tokReset,
 		}
-		a.SetQuotaInfo(info)
+		if persist {
+			a.SetQuotaInfo(info)
+		}
 		return info, nil
 	}
 	if st.ok && st.maxBytes != nil && *st.maxBytes > 0 {
@@ -571,7 +617,9 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 				RemainingBytes: &rem,
 				UsedBytes:      &used,
 			}
-			a.SetQuotaInfo(info)
+			if persist {
+				a.SetQuotaInfo(info)
+			}
 			return info, nil
 		}
 		if st.usedBytes != nil && *st.usedBytes <= lim {
@@ -584,7 +632,9 @@ func (a *Account) FetchQuotaInfo(ctx context.Context) (QuotaInfo, error) {
 				RemainingBytes: &rem,
 				UsedBytes:      &used,
 			}
-			a.SetQuotaInfo(info)
+			if persist {
+				a.SetQuotaInfo(info)
+			}
 			return info, nil
 		}
 	}
@@ -609,15 +659,19 @@ func (a *Account) FetchQuota(ctx context.Context) (*QuotaUsage, error) {
 }
 
 func (a *Account) fetchPass(ctx context.Context, access string) (*ProxyPass, error) {
+	return a.fetchPassPersist(ctx, access, true)
+}
+
+func (a *Account) fetchPassPersist(ctx context.Context, access string, persist bool) (*ProxyPass, error) {
 	r, err := a.guardian(ctx, "GET", "/api/v1/fpn/token", access)
 	if err != nil {
 		return nil, err
 	}
 	switch {
 	case r.Status == 401 || r.Status == 403:
-		return nil, errTokenInvalid
+		return nil, &TokenInvalidError{Status: r.Status, Msg: ""}
 	case r.Status == 429:
-		return nil, &QuotaExceededError{Msg: "your Firefox VPN monthly quota is used up"}
+		return nil, &QuotaExceededError{Msg: "your Firefox VPN monthly quota is used up", ResetAt: parseQuotaReset(r.Header)}
 	case r.Status != 200:
 		text := r.Text()
 		if len(text) > 300 {
@@ -647,17 +701,19 @@ func (a *Account) fetchPass(ctx context.Context, access string) (*ProxyPass, err
 		}
 	}
 	unl, rem, limit, _ := parseTokenQuotaHeaders(r.Header)
-	if unl {
-		a.SetQuotaInfo(QuotaInfo{State: QuotaStateUnlimited, Subscribed: a.CachedQuotaInfo().Subscribed})
-	} else if limit != nil && rem != nil {
-		used := *limit - *rem
-		a.SetQuotaInfo(QuotaInfo{
-			State:          QuotaStateLimited,
-			Subscribed:     a.CachedQuotaInfo().Subscribed,
-			LimitBytes:     limit,
-			RemainingBytes: rem,
-			UsedBytes:      &used,
-		})
+	if persist {
+		if unl {
+			a.SetQuotaInfo(QuotaInfo{State: QuotaStateUnlimited, Subscribed: a.CachedQuotaInfo().Subscribed})
+		} else if limit != nil && rem != nil {
+			used := *limit - *rem
+			a.SetQuotaInfo(QuotaInfo{
+				State:          QuotaStateLimited,
+				Subscribed:     a.CachedQuotaInfo().Subscribed,
+				LimitBytes:     limit,
+				RemainingBytes: rem,
+				UsedBytes:      &used,
+			})
+		}
 	}
 	return &ProxyPass{
 		Token:          body.Token,
@@ -666,6 +722,42 @@ func (a *Account) fetchPass(ctx context.Context, access string) (*ProxyPass, err
 		QuotaLimit:     limit,
 		QuotaUnlimited: unl,
 	}, nil
+}
+
+// SessionSnapshot is a copy of the persisted FxA session (used by the account pool sync).
+type SessionSnapshot struct {
+	AccessToken  string
+	RefreshToken string
+	ClientID     string
+	ExpiresAt    int64
+	Email        string
+}
+
+// SessionSnapshot returns the current state.json session (empty tokens when signed out).
+func (a *Account) SessionSnapshot() SessionSnapshot {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return SessionSnapshot{
+		AccessToken:  a.st.AccessToken,
+		RefreshToken: a.st.RefreshToken,
+		ClientID:     a.st.ClientID,
+		ExpiresAt:    a.st.ExpiresAt,
+		Email:        a.st.Email,
+	}
+}
+
+// MintPassForAccount mints a Guardian pass for an ARBITRARY access token (pool account),
+// never touching state.json. On token-invalid it activates the entitlement and retries once
+// with the same token; a still-invalid answer is returned as *TokenInvalidError so the caller
+// can refresh the foreign credential and re-mint.
+func (a *Account) MintPassForAccount(ctx context.Context, access string) (*ProxyPass, error) {
+	pass, err := a.fetchPassPersist(ctx, access, false)
+	if !errors.Is(err, errTokenInvalid) {
+		return pass, err
+	}
+	slog.Info("pool pass rejected; activating the Guardian entitlement and retrying")
+	_, _ = a.guardian(ctx, "POST", "/api/v1/fpn/activate", access)
+	return a.fetchPassPersist(ctx, access, false)
 }
 
 // MintPass gets a new proxy pass, activating the Guardian entitlement when it is rejected.

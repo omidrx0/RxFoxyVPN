@@ -36,6 +36,10 @@ func (a *App) Connect(ctx context.Context, body Body) (any, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
+	// W-07 (بند 9): an account must come first, then a server — never the reverse.
+	if err := a.w07Gate(code); err != nil {
+		return nil, err
+	}
 	if _, err := a.EnsureCountries(ctx, false); err != nil {
 		return nil, err
 	}
@@ -81,7 +85,7 @@ func (a *App) doConnect(ctx context.Context, code string) error {
 
 	if up == nil {
 		var err error
-		up, err = foxy.NewUpstream(foxy.NewTokenSource(a.account), a.opts.TLS)
+		up, err = foxy.NewUpstream(a.newTokenSource(), a.opts.TLS)
 		if err != nil {
 			return err
 		}
@@ -261,7 +265,9 @@ type Status struct {
 	QuotaLimit                *int64              `json:"quota_limit"`
 	QuotaRemaining            *int64              `json:"quota_remaining"`
 	QuotaResetAt              *string             `json:"quota_reset_at,omitempty"`
+	QuotaCheckedAt            *string             `json:"quota_checked_at,omitempty"`
 	Connection                config.Connection   `json:"connection"`
+	Pool                      PoolSummary         `json:"pool"`
 	SystemProxyAvailable      bool                `json:"system_proxy_available"`
 	TunAvailable              bool                `json:"tun_available"`
 	TunAdmin                  bool                `json:"tun_admin"`
@@ -285,6 +291,7 @@ func (a *App) StatusNow() Status {
 	}
 	a.mu.RLock()
 	q := a.quotaInfo
+	qa := a.quotaCheckedAt
 	pending := a.pendingSession != ""
 	pendingMethod := a.pendingVerificationMethod
 	pendingUnblock := a.pendingUnblockEmail != ""
@@ -293,6 +300,11 @@ func (a *App) StatusNow() Status {
 		pEmail = a.pendingUnblockEmail
 	}
 	a.mu.RUnlock()
+	var qChecked *string
+	if !qa.IsZero() {
+		s := qa.UTC().Format(time.RFC3339)
+		qChecked = &s
+	}
 
 	var capView *foxy.CaptchaPrompt
 	if a.captchaBroker != nil {
@@ -331,10 +343,12 @@ func (a *App) StatusNow() Status {
 		QuotaLimit:                qLimit,
 		QuotaRemaining:            qRem,
 		QuotaResetAt:              ptr(q.ResetAt),
+		QuotaCheckedAt:            qChecked,
 		Connection:                cs,
 		SystemProxyAvailable:      platform.IsWindows,
 		TunAvailable:              platform.IsWindows && a.runtime.Exists(),
 		TunAdmin:                  platform.IsAdmin(),
+		Pool:                      a.PoolSummaryOf(),
 		Lang:                      locale.Get(),
 	}
 	if connected && up != nil {

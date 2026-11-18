@@ -9,10 +9,46 @@ import (
 	"strings"
 
 	"rxvpn/internal/apierr"
+	"rxvpn/internal/appError"
 	"rxvpn/internal/foxy"
 	"rxvpn/internal/locale"
 	"rxvpn/internal/sysproxy"
 )
+
+// httpStatusForCode picks the HTTP status carried by a typed FoxyError.
+func httpStatusForCode(code string) int {
+	switch {
+	case code == appError.CodeNoActiveAccount, code == appError.CodeNoUsableAccount,
+		code == appError.CodeAuthFailed, code == appError.CodeAccountExpired,
+		code == appError.CodeTokenInvalid:
+		return 401
+	case code == appError.CodeQuotaExhausted, code == appError.CodeRateLimited:
+		return 429
+	case code == appError.CodeNotEntitled:
+		return 403
+	case code == appError.CodeRegionBlocked:
+		return 451
+	case code == appError.CodeConnectionTimeout, code == appError.CodeServerUnreachable:
+		return 504
+	case code == appError.CodeConnectionFailed || code == appError.CodeServerOverloaded ||
+		code == appError.CodeNetworkUnavailable || code == appError.CodeDNSFailed ||
+		code == appError.CodeTLSHandshakeFailed:
+		return 502
+	case strings.HasPrefix(code, "BACKUP_"):
+		return 400
+	case code == appError.CodeNoServerSelected || code == appError.CodeInvalidConfiguration:
+		return 400
+	default:
+		return 500
+	}
+}
+
+// humanizeCode turns QUOTA_EXHAUSTED into "Quota exhausted" — the server-side fallback only;
+// the UI renders t("errors.<CODE>.title") whenever error_code is present.
+func humanizeCode(code string) string {
+	parts := strings.ToLower(strings.ReplaceAll(code, "_", " "))
+	return strings.ToUpper(parts[:1]) + parts[1:]
+}
 
 // fxaMessages are the friendly texts (Persian, English) for known Firefox Accounts error numbers.
 var fxaMessages = map[int][2]string{
@@ -40,6 +76,13 @@ func FriendlyError(err error) *apierr.Error {
 	var ae *apierr.Error
 	if errors.As(err, &ae) {
 		return ae
+	}
+	// typed errors (FoxyError) carry a stable code; the UI renders the localized title
+	var fx appError.FoxyError
+	if errors.As(err, &fx) {
+		return apierr.New(humanizeCode(fx.Code), httpStatusForCode(fx.Code)).
+			WithExtra("error_code", fx.Code).
+			WithExtra("retryable", fx.Retryable)
 	}
 	var me *sysproxy.ModeError
 	if errors.As(err, &me) {

@@ -22,7 +22,7 @@ open class GuardianHttpError(message: String, val statusCode: Int? = null) : Exc
  * [relaysTried] is "none", "personal", "shared" or "personal,shared": what was actually attempted.
  */
 class GuardianRegionBlockedError(message: String, val relaysTried: String) : GuardianHttpError(message, 451)
-class QuotaExceededError(message: String) : Exception(message)
+class QuotaExceededError(message: String, val resetAtEpochSeconds: Long? = null) : Exception(message)
 class TokenInvalidError(message: String) : Exception(message)
 
 data class ProxyPass(
@@ -58,7 +58,7 @@ class GuardianClient(
         authorizedRequest("GET", url, accessToken).use { resp ->
             when (resp.code) {
                 401, 403 -> throw TokenInvalidError("access token was rejected by Guardian")
-                429 -> throw QuotaExceededError("account proxy quota exceeded")
+                429 -> throw QuotaExceededError("account proxy quota exceeded", parseQuotaResetEpochSeconds(resp.header("X-Quota-Reset")))
                 451 -> throw regionBlocked(resp)
             }
             val text = resp.body?.string().orEmpty()
@@ -81,7 +81,7 @@ class GuardianClient(
                     ?: jwtExpiryEpochSeconds(token),
                 quotaMax = limited?.limitBytes ?: resp.header("X-Quota-Limit")?.trim()?.toLongOrNull(),
                 quotaRemaining = limited?.remainingBytes ?: resp.header("X-Quota-Remaining")?.trim()?.toLongOrNull(),
-                quotaReset = resp.header("X-Quota-Reset")?.trim()?.toLongOrNull(),
+                quotaReset = parseQuotaResetEpochSeconds(resp.header("X-Quota-Reset")),
                 quotaUnlimited = unlimited,
             )
         }
@@ -232,6 +232,21 @@ class GuardianClient(
     }
 
     companion object {
+        /**
+         * `X-Quota-Reset` is RFC3339 (what Guardian sends) or, tolerated for compatibility,
+         * unix seconds. Returns epoch seconds, or null when it cannot be parsed.
+         */
+        fun parseQuotaResetEpochSeconds(value: String?): Long? {
+            val raw = value?.trim().orEmpty()
+            if (raw.isEmpty()) return null
+            raw.toLongOrNull()?.let { return if (it > 0) it else null }
+            return runCatching {
+                java.time.OffsetDateTime.parse(raw).toInstant().epochSecond
+            }.getOrElse {
+                runCatching { java.time.Instant.parse(raw).epochSecond }.getOrNull()
+            }
+        }
+
         /**
          * Parses `X-Quota-Unlimited`, `X-Quota-Limit`, `X-Quota-Remaining`, and `X-Quota-Reset`
          * matching Mozilla's official `ProxyUsage.fromResponse` in `GuardianTypes.sys.mjs`:

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"rxvpn/internal/accounts"
 	"rxvpn/internal/config"
 	"rxvpn/internal/foxy"
 	"rxvpn/internal/platform"
@@ -32,7 +33,7 @@ type Options struct {
 	HTTPPort         int
 	APIProxy         string
 	TLS              foxy.TLSOptions
-	LaunchFxaWebView func(ipcURL, ipcSecret, email string) (func(), error)
+	LaunchFxaWebView func(ipcURL, ipcSecret, email, proxyAddress string) (func(), error)
 }
 
 // App is the whole backend of the panel. All methods are safe for concurrent use.
@@ -54,7 +55,10 @@ type App struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	opMu sync.Mutex // one connect / disconnect at a time
+	opMu          sync.Mutex // one connect / disconnect at a time
+	poolMu        sync.Mutex // guards pool (the account pool is rebuilt only at startup)
+	pool          *poolState
+	backupVersion string
 
 	mu                        sync.RWMutex // protects the fields below (short critical sections only)
 	connSettings              config.Connection
@@ -71,6 +75,7 @@ type App struct {
 	pendingPassword           string
 	lastInteractiveEmail      string
 	quotaInfo                 foxy.QuotaInfo
+	quotaCheckedAt            time.Time
 	connectionSaveMu          sync.Mutex
 	settingsMu                sync.Mutex
 
@@ -97,9 +102,13 @@ func toFoxyRelayConfig(rc config.RelayConfig) foxy.RelayConfig {
 // New creates the app, restores a system proxy left behind by a crash and starts the
 // background refreshers.
 func New(opts Options) (*App, error) {
+	settings := config.LoadSettings()
 	cp, err := foxy.NewControlPlane(opts.APIProxy)
 	if err != nil {
 		return nil, err
+	}
+	if err := cp.SetBrowserSignInDNS(settings.DirectDNS); err != nil {
+		return nil, fmt.Errorf("configure browser sign-in DNS: %w", err)
 	}
 	relayStore := config.NewRelayStore(config.RelayConfigPath(), platform.DPAPI{})
 	annStore := config.NewAnnouncementStore(config.AnnouncementsPath())
@@ -138,7 +147,7 @@ func New(opts Options) (*App, error) {
 		ctx:           ctx,
 		cancel:        cancel,
 		connSettings:  config.LoadConnection(),
-		settings:      config.LoadSettings(),
+		settings:      settings,
 		quotaInfo:     account.CachedQuotaInfo(),
 		countries:     map[string]*foxy.Country{},
 		quotaWake:     make(chan struct{}, 1),
@@ -158,6 +167,8 @@ func New(opts Options) (*App, error) {
 	if err := sysproxy.Restore(config.ProxyBackupPath()); err != nil {
 		slog.Error("could not restore a previous Windows proxy setting", "err", err)
 	}
+	a.openPool()
+	a.applyPoolPolicy(a.settings.RotationPct)
 	go a.serverListRefresher()
 	go a.quotaRefresher()
 	go a.manifestRefresher()
@@ -328,6 +339,12 @@ func (a *App) refreshQuota() {
 		return
 	}
 	defer a.quotaRefreshMu.Unlock()
+	if active, ok := a.poolActive(); ok {
+		ctx, cancel := context.WithTimeout(a.ctx, 45*time.Second)
+		defer cancel()
+		a.refreshPoolQuota(ctx, active.ID)
+		return
+	}
 	if !a.account.HasSession() {
 		return
 	}
@@ -343,10 +360,66 @@ func (a *App) refreshQuota() {
 		a.mu.Unlock()
 		return
 	}
+	a.mu.Lock()
+	a.quotaCheckedAt = time.Now()
+	a.mu.Unlock()
 	a.setQuotaInfo(info)
 }
 
+// refreshPoolQuota updates the pool store with a fresh reading and mirrors it into the
+// panel's quota display (the mirror does NOT go through SetQuotaInfo — the legacy state.json
+// cache belongs to the legacy single-account path only).
+func (a *App) refreshPoolQuota(ctx context.Context, id string) {
+	token, err := a.poolSupplier(id)(ctx, false)
+	if err != nil {
+		logPoolQuotaError("", err)
+		return
+	}
+	info, err := a.account.FetchQuotaForToken(ctx, token, func(c context.Context, force bool) (string, error) {
+		return a.poolSupplier(id)(c, force)
+	}, false)
+	if err != nil {
+		logPoolQuotaError("", err)
+		return
+	}
+	a.mu.Lock()
+	a.quotaInfo = info
+	a.quotaCheckedAt = time.Now()
+	a.mu.Unlock()
+	u := accounts.Usage{Unlimited: info.State == foxy.QuotaStateUnlimited}
+	switch info.State {
+	case foxy.QuotaStateUnlimited:
+	case foxy.QuotaStateLimited:
+		if info.LimitBytes != nil {
+			u.LimitBytes = *info.LimitBytes
+		}
+		if info.RemainingBytes != nil {
+			u.RemainingBytes = *info.RemainingBytes
+		}
+		if info.ResetAt != "" {
+			u.ResetAt = foxy.ParseQuotaReset(info.ResetAt)
+		}
+	case foxy.QuotaStateUnknown:
+	case foxy.QuotaStateError:
+		return
+	}
+	u.CheckedAt = time.Now()
+	a.poolMu.Lock()
+	if a.pool != nil {
+		if _, err := a.pool.mgr.ObserveUsage(id, u); err != nil {
+			slog.Warn("pool usage observation failed", "err", err)
+		}
+	}
+	a.poolMu.Unlock()
+}
+
 func (a *App) scheduleQuotaRefresh() { go a.refreshQuota() }
+
+// RefreshQuota re-checks the quota in the background (W-13: the quota card's retry button).
+func (a *App) RefreshQuota(_ context.Context, _ Body) (any, error) {
+	a.scheduleQuotaRefresh()
+	return map[string]any{"ok": true}, nil
+}
 
 func (a *App) setQuotaInfo(info foxy.QuotaInfo) {
 	a.mu.Lock()
@@ -394,6 +467,7 @@ func (a *App) clearQuota() {
 	empty := foxy.QuotaInfo{State: foxy.QuotaStateUnknown}
 	a.mu.Lock()
 	a.quotaInfo = empty
+	a.quotaCheckedAt = time.Time{}
 	a.mu.Unlock()
 	a.account.SetQuotaInfo(empty)
 }
@@ -412,6 +486,7 @@ func (a *App) onPostLoginComplete(email string) {
 	if clean := foxy.NormalizeEmail(email); clean != "" {
 		a.account.SetEmail(clean)
 	}
+	a.syncPoolAccountAfterLogin(email)
 	a.quotaRefreshMu.Lock()
 	a.clearQuota()
 	a.quotaRefreshMu.Unlock()

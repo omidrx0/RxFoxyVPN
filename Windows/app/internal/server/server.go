@@ -1,5 +1,5 @@
 // Package server serves the panel files from the embedded web folder and the JSON API
-// (/api/...) that web/app.js talks to. It only listens on 127.0.0.1 and refuses requests that
+// (/api/...) that the web panel scripts talk to. It only listens on 127.0.0.1 and refuses requests that
 // do not come from the panel window itself (secret token cookie, Host check, custom header).
 package server
 
@@ -23,16 +23,17 @@ import (
 
 	"rxvpn/internal/apierr"
 	"rxvpn/internal/app"
+	"rxvpn/internal/backup"
 	"rxvpn/internal/config"
 	"rxvpn/internal/foxy"
 	"rxvpn/internal/locale"
 	"rxvpn/packaging"
-	"rxvpn/web"
+	"rxvpn/ui"
 )
 
 type apiFunc func(context.Context, app.Body) (any, error)
 
-// staticTypes are the only file types ever served from the web folder.
+// staticTypes are the only file types ever served from the embedded UI folder.
 var staticTypes = map[string]string{
 	".css":   "text/css; charset=utf-8",
 	".js":    "text/javascript; charset=utf-8",
@@ -57,7 +58,7 @@ type Server struct {
 	allowedHosts map[string]bool
 	get          map[string]apiFunc
 	post         map[string]apiFunc
-	webFS        fs.FS
+	uiFS         fs.FS
 	http         *http.Server
 }
 
@@ -81,6 +82,7 @@ func StartWithVersion(a *app.App, port int, version string) (*Server, string, er
 	}
 	s := New(a, base64.RawURLEncoding.EncodeToString(raw), realPort)
 	s.version = version
+	a.SetBackupVersion(version)
 	s.http = &http.Server{Handler: s, ReadHeaderTimeout: 30 * time.Second}
 	go func() {
 		if err := s.http.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -100,7 +102,7 @@ func New(a *app.App, token string, port int) *Server {
 			fmt.Sprintf("127.0.0.1:%d", port): true,
 			fmt.Sprintf("localhost:%d", port): true,
 		},
-		webFS: web.FS,
+		uiFS: ui.FS,
 	}
 	s.get = map[string]apiFunc{
 		"status": a.Status, "servers": a.Servers, "saved_accounts": a.SavedAccounts,
@@ -111,12 +113,8 @@ func New(a *app.App, token string, port int) *Server {
 		"update_check": func(ctx context.Context, _ app.Body) (any, error) {
 			return checkLatestRelease(ctx, s.version)
 		},
-		"update_progress": func(ctx context.Context, _ app.Body) (any, error) { return getUpdateProgress(), nil },
 	}
 	s.post = map[string]apiFunc{
-		"install_update": func(ctx context.Context, _ app.Body) (any, error) {
-			return downloadAndLaunchInstaller(ctx, s.version)
-		},
 		"login": a.Login, "verify": a.Verify, "unblock": a.SubmitUnblock,
 		"resend_code": a.ResendCode, "cancel_auth": a.CancelPendingAuth,
 		"captcha_submit": a.CaptchaSubmit, "captcha_refresh": a.CaptchaRefresh, "captcha_cancel": a.CaptchaCancel,
@@ -132,8 +130,37 @@ func New(a *app.App, token string, port int) *Server {
 		"set_relay_settings": a.SetRelaySettings, "clear_personal_relay": a.ClearPersonalRelay,
 		"test_personal_relay": a.TestPersonalRelay,
 		"ack_announcement":    a.AckAnnouncement,
+		"pool_activate":       a.PoolActivate, "pool_toggle": a.PoolToggle,
+		"pool_move": a.PoolMove, "pool_remove": a.PoolRemove,
+		"pool_refresh": a.PoolRefresh, "pool_refresh_all": a.PoolRefreshAll,
+		"clear_tun_log": a.ClearTunLog,
+		"refresh_quota": a.RefreshQuota,
 	}
 	return s
+}
+
+// callBackup reads a raw backup upload (capped) and runs inspect or import on it.
+func (s *Server) callBackup(w http.ResponseWriter, r *http.Request, p string) {
+	raw, err := io.ReadAll(io.LimitReader(r.Body, int64(backup.MaxBackupSize)+1))
+	if err != nil {
+		sendJSON(w, 400, map[string]string{"error": "bad request"})
+		return
+	}
+	if len(raw) > backup.MaxBackupSize {
+		sendError(w, FriendlyError(fmt.Errorf("%w: the file exceeds %d bytes", backup.ErrBackupInvalid, backup.MaxBackupSize)))
+		return
+	}
+	var result any
+	if p == "/api/backup_inspect" {
+		result, err = s.app.BackupInspectRaw(raw)
+	} else {
+		result, err = s.app.BackupImportRaw(raw)
+	}
+	if err != nil {
+		sendError(w, FriendlyError(err))
+		return
+	}
+	sendJSON(w, 200, result)
 }
 
 // Shutdown stops the server.
@@ -226,7 +253,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) indexHTML() ([]byte, error) {
-	raw, err := fs.ReadFile(s.webFS, "index.html")
+	raw, err := fs.ReadFile(s.uiFS, "index.html")
 	if err != nil {
 		return nil, err
 	}
@@ -267,6 +294,18 @@ func (s *Server) doGET(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, html, "text/html; charset=utf-8", extra)
 	case p == "/favicon.ico":
 		send(w, 200, packaging.IconICO, "image/x-icon", map[string]string{"Cache-Control": "public, max-age=86400"})
+	case p == "/api/backup_export":
+		data, fname, err := s.app.BackupExport()
+		if err != nil {
+			sendError(w, FriendlyError(err))
+			return
+		}
+		send(w, 200, data, "application/zip", map[string]string{
+			"Content-Disposition": `attachment; filename="` + fname + `"`,
+			"Cache-Control":       "no-store",
+		})
+	case p == "/api/pool_accounts":
+		s.call(w, r, func(ctx context.Context, _ app.Body) (any, error) { return s.app.PoolAccounts(ctx, nil) }, nil, false)
 	case strings.HasPrefix(p, "/flag/") && strings.HasSuffix(p, ".png"):
 		data := s.app.Flag(r.Context(), strings.ToLower(p[len("/flag/"):len(p)-len(".png")]))
 		if data == nil {
@@ -294,7 +333,7 @@ func (s *Server) serveStatic(w http.ResponseWriter, urlPath string) {
 		send(w, 404, []byte("not found"), "text/plain", nil)
 		return
 	}
-	data, err := fs.ReadFile(s.webFS, rel)
+	data, err := fs.ReadFile(s.uiFS, rel)
 	if err != nil {
 		send(w, 404, []byte("not found"), "text/plain", nil)
 		return
@@ -313,6 +352,11 @@ func (s *Server) doPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Header.Get("X-RXVPN") != "1" { // a cross-site page cannot set this header
 		sendJSON(w, 403, map[string]string{"error": "forbidden"})
+		return
+	}
+	// backup endpoints take the RAW backup file (bounded), never JSON
+	if p == "/api/backup_inspect" || p == "/api/backup_import" {
+		s.callBackup(w, r, p)
 		return
 	}
 	var fn apiFunc

@@ -55,6 +55,10 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_EXIT_CHECK, true)
         set(value) { prefs.edit().putBoolean(KEY_EXIT_CHECK, value).apply() }
 
+    var signInMethod: SignInMethod
+        get() = prefs.getString(KEY_SIGN_IN_METHOD, null)?.let { runCatching { SignInMethod.valueOf(it) }.getOrNull() } ?: SignInMethod.DIRECT
+        set(value) { prefs.edit().putString(KEY_SIGN_IN_METHOD, value.name).apply() }
+
     var socksBindAddress: String
         get() = prefs.getString(KEY_SOCKS_BIND_ADDRESS, DEFAULT_SOCKS_BIND_ADDRESS) ?: DEFAULT_SOCKS_BIND_ADDRESS
         set(value) {
@@ -186,6 +190,91 @@ class SettingsStore(context: Context) {
             prefs.edit().putStringSet(KEY_EXCLUDED_APPS, HashSet(value)).apply()
         }
 
+    // ---- sing-box engine settings (no UI yet; defaults reproduce the previous behaviour) ----
+
+    var splitTunnelMode: SplitTunnelMode
+        get() = SplitTunnelMode.entries.firstOrNull {
+            it.name == prefs.getString(KEY_SPLIT_TUNNEL_MODE, null)
+        } ?: SplitTunnelMode.EXCLUDE
+        set(value) { prefs.edit().putString(KEY_SPLIT_TUNNEL_MODE, value.name).apply() }
+
+    var includedApps: Set<String>
+        get() = prefs.getStringSet(KEY_INCLUDED_APPS, emptySet())?.toSet() ?: emptySet()
+        set(value) { prefs.edit().putStringSet(KEY_INCLUDED_APPS, HashSet(value)).apply() }
+
+    var ipMode: IpMode
+        get() = IpMode.entries.firstOrNull { it.name == prefs.getString(KEY_IP_MODE, null) } ?: IpMode.DUAL_STACK
+        set(value) { prefs.edit().putString(KEY_IP_MODE, value.name).apply() }
+
+    var httpVersion: HttpVersion
+        get() = HttpVersion.entries.firstOrNull { it.name == prefs.getString(KEY_HTTP_VERSION, null) } ?: HttpVersion.HTTP_2
+        set(value) { prefs.edit().putString(KEY_HTTP_VERSION, value.name).apply() }
+
+    var tlsFragmentMode: TlsFragmentMode
+        get() = TlsFragmentMode.entries.firstOrNull { it.name == prefs.getString(KEY_TLS_FRAGMENT_MODE, null) } ?: TlsFragmentMode.OFF
+        set(value) { prefs.edit().putString(KEY_TLS_FRAGMENT_MODE, value.name).apply() }
+
+    var fragmentFallbackDelayMs: Int
+        get() = prefs.getInt(KEY_FRAGMENT_FALLBACK_DELAY, DEFAULT_FRAGMENT_FALLBACK_DELAY_MS).coerceIn(50, 2_000)
+        set(value) { prefs.edit().putInt(KEY_FRAGMENT_FALLBACK_DELAY, value.coerceIn(50, 2_000)).apply() }
+
+    var utlsFingerprint: UtlsFingerprint
+        get() = UtlsFingerprint.entries.firstOrNull { it.name == prefs.getString(KEY_UTLS_FINGERPRINT, null) } ?: UtlsFingerprint.FIREFOX
+        set(value) { prefs.edit().putString(KEY_UTLS_FINGERPRINT, value.name).apply() }
+
+    var maxConcurrentStreams: Int
+        get() = prefs.getInt(KEY_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONCURRENT_STREAMS).coerceIn(2, 128)
+        set(value) { prefs.edit().putInt(KEY_MAX_CONCURRENT_STREAMS, value.coerceIn(2, 128)).apply() }
+
+    var bypassLocalNetwork: Boolean
+        get() = prefs.getBoolean(KEY_BYPASS_LOCAL_NETWORK, true)
+        set(value) { prefs.edit().putBoolean(KEY_BYPASS_LOCAL_NETWORK, value).apply() }
+
+    /** Country whose traffic should bypass the VPN ("Direct routing"). NONE = everything follows the VPN. */
+    var routingRegion: RoutingRegion
+        get() = RoutingRegion.entries.firstOrNull { it.name == prefs.getString(KEY_ROUTING_REGION, null) } ?: RoutingRegion.NONE
+        set(value) { prefs.edit().putString(KEY_ROUTING_REGION, value.name).apply() }
+
+    /** DNS used only to resolve hostnames the core itself needs (edge, upstream proxy, DoH servers). */
+    var bootstrapDohProvider: DohProvider
+        get() = DohProvider.entries.firstOrNull { it.name == prefs.getString(KEY_BOOTSTRAP_DOH, null) } ?: DohProvider.AUTOMATIC
+        set(value) { prefs.edit().putString(KEY_BOOTSTRAP_DOH, value.name).apply() }
+
+    var latencyProbeUrl: String
+        get() = (prefs.getString(KEY_LATENCY_URL, null) ?: DEFAULT_LATENCY_PROBE_URL).let { if (isValidProbeUrl(it)) it else DEFAULT_LATENCY_PROBE_URL }
+        set(value) {
+            val v = value.trim().ifEmpty { DEFAULT_LATENCY_PROBE_URL }
+            if (!isValidProbeUrl(v)) return   // invalid input never replaces the last valid value
+            prefs.edit().putString(KEY_LATENCY_URL, v).apply()
+        }
+
+    var automaticRecovery: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_RECOVERY, true)
+        set(value) { prefs.edit().putBoolean(KEY_AUTO_RECOVERY, value).apply() }
+
+    enum class SignInMethod { DIRECT, BROWSER }
+
+    /** Regions with a bundled Direct-routing ruleset (IPdeny zone + curated suffixes). */
+    enum class RoutingRegion { NONE, IR, CN, RU, AF, TR, ID, BR }
+
+    enum class SplitTunnelMode { EXCLUDE, INCLUDE }
+
+    enum class IpMode(val hasIpv4: Boolean, val hasIpv6: Boolean, val dnsStrategy: String?) {
+        DUAL_STACK(true, true, null),
+        PREFER_IPV4(true, true, "prefer_ipv4"),
+        PREFER_IPV6(true, true, "prefer_ipv6"),
+        IPV4_ONLY(true, false, "ipv4_only"),
+        IPV6_ONLY(false, true, "ipv6_only"),
+    }
+
+    enum class HttpVersion(val versionNumber: Int) { HTTP_1(1), HTTP_2(2), HTTP_3(3) }
+
+    enum class TlsFragmentMode { OFF, RECORD, PACKET, COMBINED }
+
+    enum class UtlsFingerprint(val identifier: String) {
+        FIREFOX("firefox"), CHROME("chrome"), SAFARI("safari"), IOS("ios"), EDGE("edge"), RANDOMIZED("randomized"),
+    }
+
     enum class UpstreamProxyType { SOCKS5, HTTP }
 
     enum class DohProvider(val label: String) {
@@ -208,6 +297,7 @@ class SettingsStore(context: Context) {
 
     companion object {
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_SIGN_IN_METHOD = "sign_in_method"
         private const val KEY_EXIT_CHECK = "exit_check_enabled"
         private const val KEY_TUNNEL_MTU = "tunnel_mtu"
         private const val KEY_SOCKS_BIND_ADDRESS = "socks_bind_address"
@@ -231,7 +321,23 @@ class SettingsStore(context: Context) {
         private const val KEY_SHARED_RELAY_SECRET = "relay_shared_secret"
         private const val KEY_MANIFEST_PRIMARY_URL_OVERRIDE = "manifest_primary_url_override"
         private const val KEY_MANIFEST_FALLBACK_URL_OVERRIDE = "manifest_fallback_url_override"
-        const val DEFAULT_TUNNEL_MTU = 1400
+        private const val KEY_BOOTSTRAP_DOH = "bootstrap_doh_provider"
+        private const val KEY_LATENCY_URL = "latency_probe_url"
+        private const val KEY_AUTO_RECOVERY = "automatic_recovery"
+        const val DEFAULT_LATENCY_PROBE_URL = "https://www.gstatic.com/generate_204"
+        private const val KEY_SPLIT_TUNNEL_MODE = "split_tunnel_mode"
+        private const val KEY_INCLUDED_APPS = "included_apps"
+        private const val KEY_IP_MODE = "ip_mode"
+        private const val KEY_HTTP_VERSION = "http_version"
+        private const val KEY_TLS_FRAGMENT_MODE = "tls_fragment_mode"
+        private const val KEY_FRAGMENT_FALLBACK_DELAY = "fragment_fallback_delay_ms"
+        private const val KEY_UTLS_FINGERPRINT = "utls_fingerprint"
+        private const val KEY_MAX_CONCURRENT_STREAMS = "max_concurrent_streams"
+        private const val KEY_BYPASS_LOCAL_NETWORK = "bypass_local_network"
+        private const val KEY_ROUTING_REGION = "routing_region"
+        const val DEFAULT_FRAGMENT_FALLBACK_DELAY_MS = 100
+        const val DEFAULT_MAX_CONCURRENT_STREAMS = 32
+        const val DEFAULT_TUNNEL_MTU = 1280
         const val MIN_TUNNEL_MTU = 1280
         const val MAX_TUNNEL_MTU = 9000
         const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1"
@@ -280,6 +386,22 @@ class SettingsStore(context: Context) {
                         char == '-' || (char.code < 128 && (char.isLetterOrDigit()))
                     }
             }
+        }
+
+
+        fun isValidProbeUrl(value: String): Boolean {
+            val v = value.trim()
+            if (v.length > 512 || !v.startsWith("https://")) return false  // https only: no cleartext probes
+            val host = runCatching { java.net.URI(v).host }.getOrNull() ?: return false
+            return host.isNotBlank() && java.net.URI(v).userInfo == null
+        }
+
+        fun isValidProxyHost(value: String): Boolean = isValidEdgeHost(value) || value.trim() == "localhost"
+
+        fun isLocalProxyLoop(host: String, port: Int, localPort: Int): Boolean {
+            val h = host.trim().lowercase()
+            val local = h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0"
+            return local && port == localPort
         }
 
         fun isValidEdgeHost(value: String): Boolean {

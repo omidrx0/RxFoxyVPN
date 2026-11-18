@@ -31,9 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,6 +77,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ScaffoldDefaults
+import com.vauth.rxfoxyvpn.ui.icons.FoxyIcons
 
 /* Design tokens from the Windows web UI (same values as the other screens) */
 private object RxLog {
@@ -155,7 +153,7 @@ fun LogsScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = RxLog.Text, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = LanguageManager.t("back", "Back"), tint = RxLog.Text, modifier = Modifier.size(20.dp))
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -192,12 +190,12 @@ fun LogsScreen(onBack: () -> Unit) {
                             )
                         }
                     }
-                    ActionIcon(Icons.Filled.ContentCopy, LanguageManager.t("logs_copy", "Copy logs"), RxLog.Violet) {
+                    ActionIcon(FoxyIcons.ContentCopy, LanguageManager.t("logs_copy", "Copy logs"), RxLog.Violet) {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("RxFoxyVPN logs", AppLogger.exportAsText()))
                         Toast.makeText(context, LanguageManager.t("logs_copied", "Copied"), Toast.LENGTH_SHORT).show()
                     }
-                    ActionIcon(Icons.Filled.DeleteSweep, LanguageManager.t("logs_clear", "Clear logs"), RxLog.Bad) { AppLogger.clear() }
+                    ActionIcon(FoxyIcons.DeleteSweep, LanguageManager.t("logs_clear", "Clear logs"), RxLog.Bad) { AppLogger.clear() }
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(RxLog.Line))
 
@@ -234,7 +232,7 @@ fun LogsScreen(onBack: () -> Unit) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                if (noProblems) Icons.Filled.CheckCircle else Icons.Filled.Description,
+                                if (noProblems) Icons.Filled.CheckCircle else FoxyIcons.Description,
                                 contentDescription = null,
                                 tint = if (noProblems) RxLog.Good else RxLog.Mute,
                                 modifier = Modifier.size(34.dp),

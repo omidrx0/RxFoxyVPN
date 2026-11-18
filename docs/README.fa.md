@@ -10,16 +10,17 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.5-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Version](https://img.shields.io/badge/version-v2.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Core](https://img.shields.io/badge/Core-Sing--box-0A66C2?style=flat-square&logo=box&logoColor=white)](https://github.com/SagerNet/sing-box)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
 <br>
 
-[**دانلود**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) · [سورس‌کد](https://github.com/omidrx0/RxFoxyVPN)
+[**دانلود**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0) · [سورس‌کد](https://github.com/omidrx0/RxFoxyVPN)
 
 [English](../README.md) · **فارسی** · [Русский](README.ru.md) · [简体中文](README.zh.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
@@ -31,16 +32,21 @@
 
 ## معرفی
 
-RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **ویندوز** است که رابط کاربری ساده و یکپارچه‌ای به زبان شما ارائه می‌دهد. این مخزن شامل سورس‌کد و مستندات است؛ نسخه‌های آماده در صفحهٔ [Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) منتشر می‌شوند.
+RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **ویندوز** است که رابط کاربری ساده و یکپارچه‌ای به زبان شما ارائه می‌دهد. این مخزن شامل سورس‌کد و مستندات است؛ نسخه‌های آماده در صفحهٔ [Releases گیت‌هاب](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0) منتشر می‌شوند.
 
-### تغییرات نسخهٔ v1.0.5
-**بهبود پایداری، مدیریت Relay و امکانات جدید**
+### تغییرات نسخهٔ v2.0.0
 
-- بهبود ورود و مدیریت CAPTCHA.
-- رفع مشکلات نشست کاربری، حجم اشتراک و اطلاعات سرورها.
-- اضافه شدن مدیریت Relay از طریق GitHub و اطلاعیه‌های آنلاین.
-- بهبود ویجت‌ها، تنظیمات سریع و مدیریت خطاها.
-- پشتیبانی از نمایش اشتراک نامحدود (∞).
+> **یک هستهٔ جدید · تجربه‌ای تازه · اتصالی بهتر**
+
+| | |
+|---|---|
+| **⚡ تحول در هسته** | انتقال کامل به **Sing-box**. عملکرد بهتر، پایداری بیشتر، قابلیت‌های پیشرفته و سیستم ضدسانسور جدید. |
+| **🔐 مدیریت هوشمند حساب‌ها** | سیستم ورود جدید + استخر حساب‌ها. تعویض خودکار حساب هنگام رسیدن به ۹۵٪ مصرف. |
+| **🌍 مسیریابی هوشمند** | مسیریابی منطقه‌ای. کشور دلخواه را انتخاب کنید تا ترافیکش مستقیم (خارج از VPN) رد شود. |
+| **📱 بازطراحی اندروید** | طراحی جدید تنظیمات و فهرست سرورها، بهبود صفحه اصلی و تجربه کاربری یکدست‌تر. |
+| **💻 بازطراحی ویندوز** | رابط کاملاً جدید و نزدیک به نسخه اندروید برای تجربه یکپارچه بین دو پلتفرم. |
+| **✨ تجربه کاربری بهتر** | پیام‌های خطای واضح‌تر و راهنمایی بهتر هنگام بروز مشکل. |
+| **🛠 پایداری و بهینه‌سازی** | رفع باگ‌های قبلی و بهبود پایداری کلی در اندروید و ویندوز. |
 
 ## ویژگی‌ها
 
@@ -52,12 +58,15 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
 
 **هر دو پلتفرم:** رابط کاربری به زبان‌های انگلیسی، فارسی، روسی، چینی ساده‌شده، کره‌ای و عربی.
 
+> [!TIP]
+> مشکل اتصال دارید؟ می‌توانید [**رله شخصی بسازید**](relay/README.md).
+
 ## تصاویر برنامه
 
 ### ویندوز
 
 <div align="center">
-  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN در ویندوز" width="88%">
+  <img src="screenshots/Windows.jpg" alt="RXFoxyVPN در ویندوز" width="88%">
 </div>
 
 ### اندروید
@@ -67,9 +76,9 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
 <div align="center">
   <table width="100%">
     <tr>
-      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="صفحهٔ اصلی اندروید" width="100%"></a></td>
-      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="فهرست سرورها در اندروید" width="100%"></a></td>
-      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="تنظیمات اندروید" width="100%"></a></td>
+      <td align="center" width="33%"><a href="screenshots/Home.jpg"><img src="screenshots/Home.jpg" alt="صفحهٔ اصلی اندروید" width="100%"></a></td>
+      <td align="center" width="33%"><a href="screenshots/Server%20list.jpg"><img src="screenshots/Server%20list.jpg" alt="فهرست سرورها در اندروید" width="100%"></a></td>
+      <td align="center" width="33%"><a href="screenshots/Settings.jpg"><img src="screenshots/Settings.jpg" alt="تنظیمات اندروید" width="100%"></a></td>
     </tr>
     <tr>
       <td align="center"><sub><b>صفحهٔ اصلی</b></sub></td>
@@ -79,9 +88,9 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
   </table>
 </div>
 
-## دانلود · v1.0.5
+## دانلود · v2.0.0
 
-آخرین نسخه را از <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5"><b>Releases گیت‌هاب</b></a> دریافت کنید، یا بستهٔ مناسب دستگاه خود را انتخاب کنید.
+آخرین نسخه را از <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0"><b>Releases گیت‌هاب</b></a> دریافت کنید، یا بستهٔ مناسب دستگاه خود را انتخاب کنید.
 
 <table dir="rtl">
   <thead>
@@ -97,31 +106,31 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
         <sub>اندروید ۸٫۰ به بالا</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-universal-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-universal-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
         <b>بهترین انتخاب در صورت تردید.</b> ⭐<br><sub>روی همهٔ دستگاه‌ها و معماری‌ها کار می‌کند.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-arm64-v8a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-arm64-v8a-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
         گوشی‌ها و تبلت‌های جدید.<br><sub>پردازندهٔ ARM ۶۴ بیتی.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-armeabi-v7a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-armeabi-v7a-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
         دستگاه‌های اندرویدی قدیمی.<br><sub>پردازندهٔ ARM ۳۲ بیتی.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86_64-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-x86_64-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
         دستگاه‌های Intel/AMD و شبیه‌سازها.<br><sub>۶۴ بیتی.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-x86-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
         دستگاه‌های Intel/AMD و شبیه‌سازها.<br><sub>۳۲ بیتی.</sub>
       </td>
     </tr>
@@ -131,13 +140,13 @@ RXFoxyVPN پروژه‌ای چندسکویی برای **اندروید** و **و
         <sub>ویندوز ۱۰ به بالا</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
         <b>نصب‌کنندهٔ استاندارد برای رایانه‌های ۶۴ بیتی.</b> ⭐<br><sub>میان‌بر می‌سازد و حذف آسانی دارد.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
         نیازی به نصب نیست.<br><sub>فایل ZIP را استخراج و اجرا کنید.</sub>
       </td>
     </tr>

@@ -10,16 +10,17 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v1.0.5-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
-[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5)
+[![Version](https://img.shields.io/badge/version-v2.0.0-FF6A00?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Core](https://img.shields.io/badge/Core-Sing--box-0A66C2?style=flat-square&logo=box&logoColor=white)](https://github.com/SagerNet/sing-box)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Windows](https://img.shields.io/badge/Windows-portable-0078D4?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
+[![Windows Setup](https://img.shields.io/badge/Windows-Setup-2EA44F?style=flat-square&logo=windows&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0)
 [![Languages](https://img.shields.io/badge/languages-6-8A2BE2?style=flat-square)](https://github.com/omidrx0/RxFoxyVPN)
 [![Source](https://img.shields.io/badge/source-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/omidrx0/RxFoxyVPN)
 
 <br>
 
-[**Download**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) · [Source](https://github.com/omidrx0/RxFoxyVPN)
+[**Download**](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0) · [Source](https://github.com/omidrx0/RxFoxyVPN)
 
 **English** · [فارسی](docs/README.fa.md) · [Русский](docs/README.ru.md) · [简体中文](docs/README.zh.md) · [한국어](docs/README.ko.md) · [العربية](docs/README.ar.md)
 
@@ -29,16 +30,21 @@ A fast, clean and multilingual VPN client for **Android** and **Windows**.
 
 ## Overview
 
-RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built around a simple, consistent interface that speaks your language. This repository contains the source code and documentation; ready-to-use builds are published on the [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5) page.
+RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built around a simple, consistent interface that speaks your language. This repository contains the source code and documentation; ready-to-use builds are published on the [GitHub Releases](https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0) page.
 
-### What's new in v1.0.5
-**Stability, Relay Management & Improvements**
+### What's new in v2.0.0
 
-- Improved VPN login and CAPTCHA handling.
-- Fixed session, subscription quota, and server-data issues.
-- Added GitHub-based Manifest Relay management and online announcements.
-- Improved widgets, Quick Settings, and error handling.
-- Added unlimited subscription display (∞).
+> **A NEW CORE · A NEW EXPERIENCE · A BETTER CONNECTION**
+
+| | |
+|---|---|
+| **⚡ Core Evolution** | Full migration to **Sing-box**. Better performance, stronger stability, advanced features, and a new Anti-Censorship system. |
+| **🔐 Smart Account Management** | New authentication + Account Pool. Auto-switches accounts at 95% usage for better capacity handling. |
+| **🌍 Smart Routing** | Region-based routing. Choose a preferred country — its traffic bypasses the VPN and goes direct. |
+| **📱 Android UI Revamp** | Major redesign of Settings & Server List, refined Home screen, and more consistent UX throughout. |
+| **💻 Windows UI Redesign** | Completely redesigned interface, now visually aligned with Android for a unified experience. |
+| **✨ Better User Experience** | Clearer error messages and improved guidance when something goes wrong. |
+| **🛠 Stability & Improvements** | Multiple bug fixes and overall stability improvements on both platforms. |
 
 ## Features
 
@@ -50,12 +56,15 @@ RXFoxyVPN is a cross-platform project for **Android** and **Windows**, built aro
 
 **Both platforms:** interface in English, Persian, Russian, Simplified Chinese, Korean and Arabic.
 
+> [!TIP]
+> Having trouble connecting? You can [**build a personal relay**](docs/relay/README.md).
+
 ## Screenshots
 
 ### Windows
 
 <div align="center">
-  <img src="https://i.ibb.co/bgP17rKC/Rx-Foxy-Vpn-windows.jpg" alt="RXFoxyVPN for Windows" width="88%">
+  <img src="docs/screenshots/Windows.jpg" alt="RXFoxyVPN for Windows" width="88%">
 </div>
 
 ### Android
@@ -65,9 +74,9 @@ Minimum supported version: **Android 8.0**.
 <div align="center">
   <table width="100%">
     <tr>
-      <td align="center" width="33%"><a href="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg"><img src="https://i.ibb.co/S1L6KL9/RXFOXYVPN-home-android.jpg" alt="Android home screen" width="100%"></a></td>
-      <td align="center" width="33%"><a href="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg"><img src="https://i.ibb.co/YTTfCL82/RXFOXYVPN-list-android.jpg" alt="Android server list" width="100%"></a></td>
-      <td align="center" width="33%"><a href="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg"><img src="https://i.ibb.co/XHYyQR3/RXFOXYVPN-settings-android.jpg" alt="Android settings screen" width="100%"></a></td>
+      <td align="center" width="33%"><a href="docs/screenshots/Home.jpg"><img src="docs/screenshots/Home.jpg" alt="Android home screen" width="100%"></a></td>
+      <td align="center" width="33%"><a href="docs/screenshots/Server%20list.jpg"><img src="docs/screenshots/Server%20list.jpg" alt="Android server list" width="100%"></a></td>
+      <td align="center" width="33%"><a href="docs/screenshots/Settings.jpg"><img src="docs/screenshots/Settings.jpg" alt="Android settings screen" width="100%"></a></td>
     </tr>
     <tr>
       <td align="center"><sub><b>Home</b></sub></td>
@@ -77,9 +86,9 @@ Minimum supported version: **Android 8.0**.
   </table>
 </div>
 
-## Download · v1.0.5
+## Download · v2.0.0
 
-Get the latest build from <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/V1.0.5"><b>GitHub Releases</b></a>, or pick the package that best matches your device.
+Get the latest build from <a href="https://github.com/omidrx0/RxFoxyVPN/releases/tag/V2.0.0"><b>GitHub Releases</b></a>, or pick the package that best matches your device.
 
 <table>
   <thead>
@@ -95,31 +104,31 @@ Get the latest build from <a href="https://github.com/omidrx0/RxFoxyVPN/releases
         <sub>Android 8.0+</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-universal-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-universal-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/Universal-APK-16A34A?style=for-the-badge&labelColor=14532D" alt="Universal APK"></a><br>
         <b>Best choice if you're unsure.</b> ⭐<br><sub>Works on all devices and architectures.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-arm64-v8a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-arm64-v8a-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/ARM64-APK-22C55E?style=for-the-badge&labelColor=166534" alt="ARM64 APK"></a><br>
         Modern phones and tablets.<br><sub>64-bit ARM processors.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-armeabi-v7a-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-armeabi-v7a-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/ARMv7-APK-4ADE80?style=for-the-badge&labelColor=15803D" alt="ARMv7 APK"></a><br>
         Older Android devices.<br><sub>32-bit ARM processors.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86_64-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-x86_64-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/x86__64-APK-10B981?style=for-the-badge&labelColor=065F46" alt="x86_64 APK"></a><br>
         Intel/AMD devices and emulators.<br><sub>64-bit.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/app-x86-releaseV1.0.5.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/app-x86-releaseV2.0.0.apk"><img src="https://img.shields.io/badge/x86-APK-34D399?style=for-the-badge&labelColor=047857" alt="x86 APK"></a><br>
         Intel/AMD devices and emulators.<br><sub>32-bit.</sub>
       </td>
     </tr>
@@ -129,13 +138,13 @@ Get the latest build from <a href="https://github.com/omidrx0/RxFoxyVPN/releases
         <sub>Windows 10+</sub>
       </td>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/RXFoxyVPN-Setup.exe"><img src="https://img.shields.io/badge/Installer-x64-1D4ED8?style=for-the-badge&labelColor=1E3A8A" alt="Windows Installer x64"></a><br>
         <b>Standard installer for 64-bit PCs.</b> ⭐<br><sub>Adds shortcuts and easy uninstall.</sub>
       </td>
     </tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V1.0.5/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
+        <a href="https://github.com/omidrx0/RxFoxyVPN/releases/download/V2.0.0/RXFOXYVPN-Windows.zip"><img src="https://img.shields.io/badge/Portable-ZIP-3B82F6?style=for-the-badge&labelColor=1E40AF" alt="Windows Portable ZIP"></a><br>
         No installation needed.<br><sub>Extract the ZIP and run.</sub>
       </td>
     </tr>

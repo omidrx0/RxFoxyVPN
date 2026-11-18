@@ -142,6 +142,19 @@ class RemoteManifestRepository(
         }
     }
 
+    private fun readCapped(stream: java.io.InputStream, limit: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream(minOf(limit, 64 * 1024))
+        val chunk = ByteArray(64 * 1024)
+        var total = 0
+        while (total < limit) {
+            val n = stream.read(chunk, 0, minOf(chunk.size, limit - total))
+            if (n <= 0) break
+            out.write(chunk, 0, n)
+            total += n
+        }
+        return out.toByteArray()
+    }
+
     private fun fetchAndValidateSingleSource(
         client: OkHttpClient,
         sourceUrl: String,
@@ -165,7 +178,8 @@ class RemoteManifestRepository(
                     return null
                 }
                 val stream = resp.body?.byteStream() ?: return null
-                val bytes = stream.readNBytes(ManifestConfig.MAX_MANIFEST_BYTES + 1)
+                // Do not use InputStream.readNBytes: it does not exist below API 33. Manual cap.
+                val bytes = readCapped(stream, ManifestConfig.MAX_MANIFEST_BYTES + 1)
                 if (bytes.isEmpty() || bytes.size > ManifestConfig.MAX_MANIFEST_BYTES) {
                     AppLogger.w(TAG, "manifest $sourceLabel rejected due to payload size=${bytes.size}")
                     return null

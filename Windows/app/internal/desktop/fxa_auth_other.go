@@ -3,7 +3,7 @@
 package desktop
 
 // LaunchFxaWebViewHelper is unavailable outside Windows; callers fall back to external browser OAuth PKCE.
-func LaunchFxaWebViewHelper(_, _, _ string) (func(), error) {
+func LaunchFxaWebViewHelper(_, _, _, _ string) (func(), error) {
 	return nil, ErrNoWebView
 }
 

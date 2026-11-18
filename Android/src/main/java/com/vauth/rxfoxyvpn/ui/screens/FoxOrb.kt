@@ -1,6 +1,7 @@
 package com.vauth.rxfoxyvpn.ui.screens
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -218,6 +220,57 @@ private class FoxRig {
     val burstP: Float get() = ((clock - onSince) / 1.1f).coerceIn(0f, 1f)
     val errorT: Float get() = clock - errSince
 
+    /** Instantly match arcs / aura / effects to [s] (no enter animation). */
+    private fun snapVisualsTo(s: OrbState) {
+        auraA = when (s) {
+            OrbState.OFF -> .14f
+            OrbState.READY -> .55f
+            OrbState.CONNECTING -> .95f
+            OrbState.PROCESSING -> .9f
+            OrbState.ON -> .8f
+            OrbState.ERROR -> .7f
+        }
+        when (s) {
+            OrbState.READY -> {
+                arcMain = 135f; arcSecond = 85f; arcW = 10f; arcA = .95f; arcA2 = .4f; arcSpeed = 22.5f; arcW2 = 3.2f
+            }
+            OrbState.CONNECTING -> {
+                arcMain = 153f; arcSecond = 92f; arcW = 10.5f; arcA = 1f; arcA2 = .45f; arcSpeed = 327f; arcW2 = 3.2f
+            }
+            OrbState.PROCESSING -> {
+                arcMain = 78f; arcSecond = 135f; arcW = 6f; arcA = .9f; arcA2 = .3f; arcSpeed = -200f; arcW2 = 3.2f
+            }
+            OrbState.ON -> {
+                arcMain = 360f; arcSecond = 360f; arcW = 5f; arcA = .95f; arcA2 = .5f; arcSpeed = 0f; arcW2 = 2f
+                onSince = -100f // burst already finished
+            }
+            OrbState.ERROR -> {
+                arcMain = 135f; arcSecond = 85f; arcA = 0f; arcA2 = 0f; arcSpeed = 0f
+                errSince = -100f
+            }
+            else -> {
+                arcA = 0f; arcA2 = 0f; arcSpeed = 0f
+            }
+        }
+        swirlA = if (s == OrbState.PROCESSING) 1f else 0f
+        sparkA = if (s == OrbState.ON || s == OrbState.CONNECTING) 1f else 0f
+        waveA = if (s == OrbState.ON) 1f else 0f
+        sheenA = if (s == OrbState.ON) 1f else 0f
+        crackA = if (s == OrbState.ERROR) 1f else 0f
+        foxA = when (s) { OrbState.OFF -> .9f; else -> 1f }
+        eyeBase = when (s) {
+            OrbState.OFF -> .25f
+            OrbState.CONNECTING, OrbState.PROCESSING -> 1.45f
+            OrbState.ERROR -> .5f
+            else -> 1f
+        }
+        glintA = when (s) {
+            OrbState.READY, OrbState.ON -> .9f
+            OrbState.CONNECTING, OrbState.PROCESSING -> 1f
+            else -> 0f
+        }
+    }
+
     /** maps one point of the rest pose into the current pose; result in ox/oy */
     private fun map(part: Int, x: Float, y: Float) {
         when (part) {
@@ -279,9 +332,11 @@ private class FoxRig {
 
     fun update(dt: Float, s: OrbState, pressed: Boolean) {
         clock += dt
+        // Only fire enter effects when the state *changes while the rig is already running*.
+        // First frame after leaving Settings must not replay the connect-burst / arc-grow.
         if (s != prev) {
-            if (s == OrbState.ON) onSince = clock
-            if (s == OrbState.ERROR) errSince = clock
+            if (started && s == OrbState.ON && prev != OrbState.ON) onSince = clock
+            if (started && s == OrbState.ERROR && prev != OrbState.ERROR) errSince = clock
             prev = s
         }
         state = s
@@ -290,8 +345,13 @@ private class FoxRig {
         val base = poseOf(s)
         val tg = base.copyOf()
         if (pressed) { tg[WS] *= .94f; tg[WY] += 4f; tg[EL] -= 22f; tg[ER] -= 26f; tg[HR] += 8f }
-        if (!started) { for (i in 0 until 16) { v[i] = tg[i]; vel[i] = 0f }; started = true }
-        else for (i in 0 until 16) {
+        if (!started) {
+            for (i in 0 until 16) { v[i] = tg[i]; vel[i] = 0f }
+            // Snap visual springs to the current state so re-entering Home is instant.
+            snapVisualsTo(s)
+            started = true
+            prev = s
+        } else for (i in 0 until 16) {
             vel[i] += ((tg[i] - v[i]) * 120f - vel[i] * 13f) * dt
             v[i] += vel[i] * dt
         }
@@ -406,6 +466,12 @@ private class FoxRig {
     }
 }
 
+/** Survives Home ↔ Settings navigation so the orb does not replay enter animations. */
+private object FoxOrbSession {
+    var rig: FoxRig? = null
+    var lastOrb: OrbState? = null
+}
+
 @Composable
 internal fun FoxOrb(
     orb: OrbState,
@@ -414,7 +480,9 @@ internal fun FoxOrb(
     dialSize: Dp = 300.dp,
     orbSize: Dp = 250.dp,
 ) {
-    val rig = remember { FoxRig() }
+    val rig = remember {
+        FoxOrbSession.rig ?: FoxRig().also { FoxOrbSession.rig = it }
+    }
     var tick by remember { mutableLongStateOf(0L) }          // forces a redraw every frame
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -422,11 +490,14 @@ internal fun FoxOrb(
     val pressedNow by rememberUpdatedState(pressed)
 
     val pal = orbPalette(orb)
-    val c by animateColorAsState(pal.c, tween(700), label = "orb-c")
-    val c2 by animateColorAsState(pal.c2, tween(700), label = "orb-c2")
-    val fx1 by animateColorAsState(pal.fx1, tween(700), label = "orb-fx1")
-    val fx2 by animateColorAsState(pal.fx2, tween(700), label = "orb-fx2")
-    val ic by animateColorAsState(pal.ic, tween(700), label = "orb-ic")
+    // Skip color tween when re-entering with the same state (Settings → Home).
+    val colorSpec = if (FoxOrbSession.lastOrb == orb) snap<Color>() else tween(700)
+    val c by animateColorAsState(pal.c, colorSpec, label = "orb-c")
+    val c2 by animateColorAsState(pal.c2, colorSpec, label = "orb-c2")
+    val fx1 by animateColorAsState(pal.fx1, colorSpec, label = "orb-fx1")
+    val fx2 by animateColorAsState(pal.fx2, colorSpec, label = "orb-fx2")
+    val ic by animateColorAsState(pal.ic, colorSpec, label = "orb-ic")
+    SideEffect { FoxOrbSession.lastOrb = orb }
 
     LaunchedEffect(Unit) {
         var last = withFrameNanos { it }

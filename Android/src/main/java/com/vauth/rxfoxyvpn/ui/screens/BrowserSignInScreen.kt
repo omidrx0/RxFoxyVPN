@@ -97,7 +97,7 @@ private fun originOf(url: String?): String? =
 fun BrowserSignInScreen(
     authRepository: FxaAuthRepository,
     initialEmail: String,
-    onSignedIn: () -> Unit,
+    onSignedIn: (email: String) -> Unit,
     onUseDirectSignIn: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -112,7 +112,9 @@ fun BrowserSignInScreen(
     var followJob by remember { mutableStateOf<Job?>(null) }
     val holder = remember { arrayOfNulls<WebView>(1) }
 
-    fun follow(token: String) {
+    var sessionEmail by remember { mutableStateOf("") }
+
+    fun follow(token: String, email: String) {
         followJob?.cancel()
         errorMessage = null
         followJob = scope.launch {
@@ -120,7 +122,7 @@ fun BrowserSignInScreen(
             result
                 .onSuccess {
                     stage = null
-                    onSignedIn()
+                    onSignedIn(email)
                 }
                 .onFailure {
                     stage = null
@@ -140,7 +142,10 @@ fun BrowserSignInScreen(
                     view.evaluateJavascript(js, null)
                 }
             },
-            onSession = { _, token -> follow(token) },
+            onSession = { email, token ->
+                if (email.isNotBlank()) sessionEmail = email
+                follow(token, email.ifBlank { sessionEmail })
+            },
         )
     }
 

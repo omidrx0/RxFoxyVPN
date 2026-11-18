@@ -37,26 +37,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +70,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,6 +101,8 @@ import com.vauth.rxfoxyvpn.BuildConfig
 import com.vauth.rxfoxyvpn.R
 import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.SettingsStore
+import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
+import com.vauth.rxfoxyvpn.vpn.TunnelHealth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -120,6 +112,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ScaffoldDefaults
+import com.vauth.rxfoxyvpn.ui.icons.FoxyIcons
 
 /* Design tokens from the Windows web UI (same values as the other screens) */
 private object RxSet {
@@ -145,7 +138,7 @@ fun SettingsScreen(
     settingsStore: SettingsStore,
     onOpenLogs: () -> Unit,
     onOpenAccount: () -> Unit,
-    onSignOut: () -> Unit,
+    onOpenServers: () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -166,6 +159,32 @@ fun SettingsScreen(
     var upstreamProxyUsername by remember { mutableStateOf(settingsStore.upstreamProxyUsername) }
     var upstreamProxyPassword by remember { mutableStateOf(settingsStore.upstreamProxyPassword) }
     var excludedApps by remember { mutableStateOf(settingsStore.excludedApps) }
+    var includedApps by remember { mutableStateOf(settingsStore.includedApps) }
+    var splitMode by remember { mutableStateOf(settingsStore.splitTunnelMode) }
+    var routingRegion by remember { mutableStateOf(settingsStore.routingRegion) }
+    var pendingInclude by remember { mutableStateOf(false) }
+    var bypassLocal by remember { mutableStateOf(settingsStore.bypassLocalNetwork) }
+    var bootstrapDoh by remember { mutableStateOf(settingsStore.bootstrapDohProvider) }
+    var latencyUrl by remember { mutableStateOf(settingsStore.latencyProbeUrl) }
+    var httpVersion by remember { mutableStateOf(settingsStore.httpVersion) }
+    var fragMode by remember { mutableStateOf(settingsStore.tlsFragmentMode) }
+    var fingerprint by remember { mutableStateOf(settingsStore.utlsFingerprint) }
+    var streams by remember { mutableIntStateOf(settingsStore.maxConcurrentStreams) }
+    var ipMode by remember { mutableStateOf(settingsStore.ipMode) }
+    var autoRecovery by remember { mutableStateOf(settingsStore.automaticRecovery) }
+    var settingsPage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showBootstrapDialog by remember { mutableStateOf(false) }
+    var showLatencyDialog by remember { mutableStateOf(false) }
+    var showSplitModeDialog by remember { mutableStateOf(false) }
+    var showRoutingRegionDialog by remember { mutableStateOf(false) }
+    var showTransportDialog by remember { mutableStateOf(false) }
+    var showFragModeDialog by remember { mutableStateOf(false) }
+    var showFingerprintDialog by remember { mutableStateOf(false) }
+    var showStreamsDialog by remember { mutableStateOf(false) }
+    var showIpModeDialog by remember { mutableStateOf(false) }
+    val tunnelHealth by RxFoxyVpnService.health.collectAsState()
+    val tunnelLatency by RxFoxyVpnService.latencyMs.collectAsState()
+    val lockdownActive by RxFoxyVpnService.lockdownActive.collectAsState()
     var showDohProviderDialog by remember { mutableStateOf(false) }
     var showCustomDnsDialog by remember { mutableStateOf(false) }
     var showSocksBindDialog by remember { mutableStateOf(false) }
@@ -228,6 +247,121 @@ fun SettingsScreen(
                 relayStatus = null
                 showRelayUrlDialog = false
             },
+        )
+    }
+
+    if (showBootstrapDialog) {
+        DohProviderPickerDialog(
+            current = bootstrapDoh,
+            title = LanguageManager.t("bootstrap_dns", "Bootstrap DNS"),
+            onDismiss = { showBootstrapDialog = false },
+            onConfirm = { bootstrapDoh = it; settingsStore.bootstrapDohProvider = it; showBootstrapDialog = false },
+        )
+    }
+    if (showLatencyDialog) {
+        LatencyUrlDialog(
+            current = latencyUrl,
+            onDismiss = { showLatencyDialog = false },
+            onConfirm = { settingsStore.latencyProbeUrl = it; latencyUrl = settingsStore.latencyProbeUrl; showLatencyDialog = false },
+        )
+    }
+    if (showSplitModeDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("split_mode", "Split tunneling mode"),
+            options = listOf(
+                Triple(SettingsStore.SplitTunnelMode.EXCLUDE, LanguageManager.t("split_exclude", "Exclude apps"), LanguageManager.t("split_exclude_desc", "Selected apps bypass the VPN")),
+                Triple(SettingsStore.SplitTunnelMode.INCLUDE, LanguageManager.t("split_include", "Include only"), LanguageManager.t("split_include_desc", "Only selected apps use the VPN")),
+            ),
+            current = splitMode,
+            onDismiss = { showSplitModeDialog = false },
+            onConfirm = { mode ->
+                showSplitModeDialog = false
+                if (mode == SettingsStore.SplitTunnelMode.INCLUDE && includedApps.isEmpty()) {
+                    pendingInclude = true; showSplitTunnelPage = true   // Include needs at least one app: pick them now
+                } else {
+                    splitMode = mode; settingsStore.splitTunnelMode = mode
+                }
+            },
+        )
+    }
+    if (showRoutingRegionDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("routing_region", "Routing region"),
+            options = listOf(
+                Triple(SettingsStore.RoutingRegion.NONE, LanguageManager.t("region_none", "Off"), LanguageManager.t("region_none_desc", "All traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.IR, LanguageManager.t("region_ir", "Iran"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.CN, LanguageManager.t("region_cn", "China"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.RU, LanguageManager.t("region_ru", "Russia"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.AF, LanguageManager.t("region_af", "Afghanistan"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.TR, LanguageManager.t("region_tr", "Turkey"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.ID, LanguageManager.t("region_id", "Indonesia"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+                Triple(SettingsStore.RoutingRegion.BR, LanguageManager.t("region_br", "Brazil"), LanguageManager.t("region_desc", "National sites and services load directly; international traffic goes through the VPN")),
+            ),
+            current = routingRegion,
+            onDismiss = { showRoutingRegionDialog = false },
+            onConfirm = { region -> routingRegion = region; settingsStore.routingRegion = region; showRoutingRegionDialog = false },
+        )
+    }
+    if (showTransportDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("transport_protocol", "Transport protocol"),
+            options = listOf(
+                Triple(SettingsStore.HttpVersion.HTTP_1, "HTTP/1.1", LanguageManager.t("transport_h1", "Classic HTTP proxy over TLS")),
+                Triple(SettingsStore.HttpVersion.HTTP_2, "HTTP/2", LanguageManager.t("transport_h2", "Multiplexed streams over TCP (default)")),
+                Triple(SettingsStore.HttpVersion.HTTP_3, "HTTP/3", LanguageManager.t("transport_h3", "QUIC over UDP. Cannot be chained through an upstream proxy")),
+            ),
+            current = httpVersion,
+            onDismiss = { showTransportDialog = false },
+            onConfirm = { v ->
+                showTransportDialog = false
+                if (v == SettingsStore.HttpVersion.HTTP_3 && upstreamProxyEnabled) {
+                    Toast.makeText(context, LanguageManager.t("h3_upstream_conflict", "HTTP/3 cannot be used while an upstream proxy is enabled."), Toast.LENGTH_LONG).show()
+                } else { httpVersion = v; settingsStore.httpVersion = v }
+            },
+        )
+    }
+    if (showFragModeDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("frag_mode", "Fragmentation mode"),
+            options = listOf(
+                Triple(SettingsStore.TlsFragmentMode.RECORD, LanguageManager.t("frag_record", "Record"), LanguageManager.t("frag_record_desc", "Split the TLS record layer")),
+                Triple(SettingsStore.TlsFragmentMode.PACKET, LanguageManager.t("frag_packet", "Packet"), LanguageManager.t("frag_packet_desc", "Split TCP segments")),
+                Triple(SettingsStore.TlsFragmentMode.COMBINED, LanguageManager.t("frag_combined", "Combined"), LanguageManager.t("frag_combined_desc", "Record and packet")),
+            ),
+            current = fragMode.takeIf { it != SettingsStore.TlsFragmentMode.OFF } ?: SettingsStore.TlsFragmentMode.COMBINED,
+            onDismiss = { showFragModeDialog = false },
+            onConfirm = { fragMode = it; settingsStore.tlsFragmentMode = it; showFragModeDialog = false },
+        )
+    }
+    if (showFingerprintDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("tls_fingerprint", "Browser TLS fingerprint"),
+            options = SettingsStore.UtlsFingerprint.entries.map { Triple(it, it.name.lowercase().replaceFirstChar(Char::uppercase), null as String?) },
+            current = fingerprint,
+            onDismiss = { showFingerprintDialog = false },
+            onConfirm = { fingerprint = it; settingsStore.utlsFingerprint = it; showFingerprintDialog = false },
+        )
+    }
+    if (showStreamsDialog) {
+        StreamsDialog(
+            current = streams,
+            onDismiss = { showStreamsDialog = false },
+            onConfirm = { streams = it; settingsStore.maxConcurrentStreams = it; showStreamsDialog = false },
+        )
+    }
+    if (showIpModeDialog) {
+        ChoiceDialog(
+            title = LanguageManager.t("ip_mode", "IP protocol mode"),
+            options = listOf(
+                Triple(SettingsStore.IpMode.DUAL_STACK, LanguageManager.t("ip_dual", "Dual-Stack"), LanguageManager.t("ip_dual_desc", "IPv4 and IPv6 (default)")),
+                Triple(SettingsStore.IpMode.PREFER_IPV4, LanguageManager.t("ip_pref4", "Prefer IPv4"), null as String?),
+                Triple(SettingsStore.IpMode.PREFER_IPV6, LanguageManager.t("ip_pref6", "Prefer IPv6"), null as String?),
+                Triple(SettingsStore.IpMode.IPV4_ONLY, LanguageManager.t("ip_v4only", "IPv4 only"), LanguageManager.t("ip_v4only_desc", "IPv6 traffic is blocked, not leaked")),
+                Triple(SettingsStore.IpMode.IPV6_ONLY, LanguageManager.t("ip_v6only", "IPv6 only"), LanguageManager.t("ip_v6only_desc", "IPv4 traffic is blocked")),
+            ),
+            current = ipMode,
+            onDismiss = { showIpModeDialog = false },
+            onConfirm = { ipMode = it; settingsStore.ipMode = it; showIpModeDialog = false },
         )
     }
 
@@ -337,12 +471,24 @@ fun SettingsScreen(
 
             if (showSplitTunnelPage) {
                 // Full-screen page (not a dialog) – system back returns to settings
+                val pageInclude = pendingInclude || splitMode == SettingsStore.SplitTunnelMode.INCLUDE
                 SplitTunnelPage(
-                    current = excludedApps,
-                    onClose = { showSplitTunnelPage = false },
+                    current = if (pageInclude) includedApps else excludedApps,
+                    includeMode = pageInclude,
+                    onClose = { pendingInclude = false; showSplitTunnelPage = false },
                     onSave = {
-                        excludedApps = it
-                        settingsStore.excludedApps = it
+                        if (pageInclude) {
+                            if (it.isEmpty()) {
+                                Toast.makeText(context, LanguageManager.t("include_needs_app", "Select at least one app, or switch back to Exclude mode."), Toast.LENGTH_LONG).show()
+                                return@SplitTunnelPage
+                            }
+                            includedApps = it; settingsStore.includedApps = it
+                            splitMode = SettingsStore.SplitTunnelMode.INCLUDE; settingsStore.splitTunnelMode = splitMode
+                            pendingInclude = false
+                        } else {
+                            excludedApps = it
+                            settingsStore.excludedApps = it
+                        }
                         showSplitTunnelPage = false
                     },
                 )
@@ -395,10 +541,11 @@ fun SettingsScreen(
                 )
             } else {
                 Column(Modifier.fillMaxSize()) {
+                    BackHandler(enabled = settingsPage != null) { settingsPage = null }
                     PageHeader(
-                        title = LanguageManager.t("settings", "Settings"),
+                        title = settingsPage?.let { groupTitle(it) } ?: LanguageManager.t("settings", "Settings"),
                         subtitle = null,
-                        onBack = onBack,
+                        onBack = { if (settingsPage != null) settingsPage = null else onBack() },
                     )
 
                     Column(
@@ -406,244 +553,414 @@ fun SettingsScreen(
                             .weight(1f)
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(22.dp),
                     ) {
-                        // ---------- General ----------
-                        Section(LanguageManager.t("general", "General")) {
+                        // ---------- Main menu (grouped like reference) ----------
+                        if (settingsPage == null) {
+                            // —— Primary ——
+                            Section("") {
+                                NavRow(
+                                    icon = FoxyIcons.Tune,
+                                    tint = RxSet.Cyan,
+                                    title = LanguageManager.t("general", "General"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "general" },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Public,
+                                    tint = RxSet.Blue,
+                                    title = LanguageManager.t("servers", "Servers"),
+                                    subtitle = null,
+                                    onClick = onOpenServers,
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = Icons.Default.AccountCircle,
+                                    tint = RxSet.Good,
+                                    title = LanguageManager.t("account_section", "Accounts"),
+                                    subtitle = null,
+                                    onClick = onOpenAccount,
+                                )
+                            }
+
+                            // —— Network ——
+                            Section(LanguageManager.t("network_section", "Network")) {
+                                NavRow(
+                                    icon = FoxyIcons.Link,
+                                    tint = RxSet.Blue,
+                                    title = LanguageManager.t("connection", "Connection"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "connection_proxy" },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Apps,
+                                    tint = RxSet.Pink,
+                                    title = LanguageManager.t("routing", "Routing"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "routing" },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Dns,
+                                    tint = RxSet.Blue,
+                                    title = "DNS",
+                                    subtitle = null,
+                                    onClick = { settingsPage = "network_dns" },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Speed,
+                                    tint = healthColor(tunnelHealth),
+                                    title = LanguageManager.t("connection_health", "Connection health"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "connection_health" },
+                                )
+                            }
+
+                            // —— If Mozilla is blocked ——
+                            Section(LanguageManager.t("relay_blocked_section", "If Mozilla is blocked")) {
+                                val relaySummary = when {
+                                    personalRelayEnabled && personalRelayOnly ->
+                                        LanguageManager.t("relay_summary_personal_only", "Personal relay only")
+                                    sharedRelayEnabled && personalRelayEnabled ->
+                                        LanguageManager.t("relay_summary_both", "Shared & personal relay active")
+                                    sharedRelayEnabled ->
+                                        LanguageManager.t("relay_summary_shared", "Shared relay active")
+                                    personalRelayEnabled ->
+                                        LanguageManager.t("relay_summary_personal", "Personal relay active")
+                                    else -> null
+                                }
+                                NavRow(
+                                    icon = FoxyIcons.Router,
+                                    tint = RxSet.Cyan,
+                                    title = LanguageManager.t("relay_server_menu", "Relay server"),
+                                    subtitle = relaySummary,
+                                    onClick = { showRelaySettingsPage = true },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Security,
+                                    tint = RxSet.Violet,
+                                    title = LanguageManager.t("tls_fragmentation", "TLS fragmentation"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "anticensor_perf" },
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = FoxyIcons.Link,
+                                    tint = RxSet.Pink,
+                                    title = LanguageManager.t("upstream_proxy", "Upstream proxy"),
+                                    subtitle = if (upstreamProxyEnabled) LanguageManager.t("active", "Active") else null,
+                                    onClick = { settingsPage = "upstream_proxy" },
+                                )
+                            }
+
+                            // —— App ——
+                            Section(LanguageManager.t("app_section", "App")) {
+                                NavRow(
+                                    icon = FoxyIcons.Description,
+                                    tint = RxSet.Cyan,
+                                    title = LanguageManager.t("logs", "Logs"),
+                                    subtitle = null,
+                                    onClick = onOpenLogs,
+                                )
+                                RowDivider()
+                                NavRow(
+                                    icon = Icons.Default.Info,
+                                    tint = RxSet.Violet,
+                                    title = LanguageManager.t("about", "About"),
+                                    subtitle = null,
+                                    onClick = { settingsPage = "about_page" },
+                                )
+                            }
+                        }
+
+                        // ---------- 1. General ----------
+                        GroupPage(settingsPage, "general", LanguageManager.t("general", "General"), initiallyExpanded = true) {
                             NavRow(
-                                icon = Icons.Default.Language,
+                                icon = FoxyIcons.Language,
                                 tint = RxSet.Cyan,
                                 title = LanguageManager.t("language", "Language"),
                                 subtitle = if (selectedLang == "auto") "${LanguageManager.t("auto", "Automatic")} (${LanguageManager.getLanguageNativeName(currentLang)})" else LanguageManager.getLanguageNativeName(selectedLang),
                                 onClick = { showLanguageDialog = true },
                             )
-                        }
-
-                        // ---------- Connection ----------
-                        Section(LanguageManager.t("connection", "Connection")) {
+                            RowDivider()
                             SwitchRow(
                                 icon = Icons.Default.Place,
                                 tint = RxSet.Good,
                                 title = LanguageManager.t("verify_exit", "Verify exit location"),
                                 subtitle = LanguageManager.t("verify_exit_desc", "Check that the tunnel exits in the selected country"),
                                 checked = exitCheckEnabled,
-                                onChecked = {
-                                    exitCheckEnabled = it
-                                    settingsStore.exitCheckEnabled = it
-                                },
+                                onChecked = { exitCheckEnabled = it; settingsStore.exitCheckEnabled = it },
                             )
-                            RowDivider()
+                        }
+
+                        // ---------- 2. Network & DNS ----------
+                        GroupPage(settingsPage, "network_dns", LanguageManager.t("network_dns", "Network & DNS"), summary = "MTU $tunnelMtu") {
                             NavRow(
-                                icon = Icons.Default.Tune,
+                                icon = FoxyIcons.Tune,
                                 tint = RxSet.Cyan,
                                 title = LanguageManager.t("tunnel_mtu", "Tunnel MTU"),
-                                subtitle = LanguageManager.t("tunnel_mtu_desc", "Packet size for the VPN tunnel") + " · $tunnelMtu",
+                                subtitle = LanguageManager.t("tunnel_mtu_desc", "Packet size for the VPN tunnel") + " · $tunnelMtu · " + LanguageManager.t("applies_next", "Applies on next connection."),
                                 onClick = { showTunnelMtuDialog = true },
                             )
                             RowDivider()
+                            NavRow(
+                                icon = FoxyIcons.Security,
+                                tint = RxSet.Violet,
+                                title = LanguageManager.t("encrypted_dns", "Encrypted DNS"),
+                                subtitle = dohSummary(dohProvider),
+                                onClick = { showDohProviderDialog = true },
+                            )
+                            RowDivider()
+                            NavRow(
+                                icon = FoxyIcons.Dns,
+                                tint = RxSet.Blue,
+                                title = LanguageManager.t("bootstrap_dns", "Bootstrap DNS"),
+                                subtitle = LanguageManager.t("bootstrap_dns_desc", "Resolves the VPN server and DNS hostnames only") + " · " + dohSummary(bootstrapDoh),
+                                onClick = { showBootstrapDialog = true },
+                            )
+                            RowDivider()
+                            SwitchRow(
+                                icon = FoxyIcons.Dns,
+                                tint = RxSet.Cyan,
+                                title = LanguageManager.t("custom_dns", "Use a custom DNS server"),
+                                subtitle = LanguageManager.t("custom_dns_desc", "Send your apps' DNS queries to a server you choose"),
+                                checked = customDnsEnabled,
+                                onChecked = { customDnsEnabled = it; settingsStore.customDnsEnabled = it },
+                            )
+                            AnimatedVisibility(visible = customDnsEnabled) {
+                                Column {
+                                    RowDivider()
+                                    NavRow(
+                                        icon = FoxyIcons.Tune,
+                                        tint = RxSet.Cyan,
+                                        title = LanguageManager.t("dns_server", "DNS server"),
+                                        subtitle = SettingsStore.CUSTOM_DNS_PRESETS.firstOrNull { it.first == customDnsServer }?.second ?: customDnsServer,
+                                        onClick = { showCustomDnsDialog = true },
+                                    )
+                                }
+                            }
+                            RowDivider()
+                            NavRow(
+                                icon = FoxyIcons.Speed,
+                                tint = RxSet.Good,
+                                title = LanguageManager.t("latency_url", "Latency test URL"),
+                                subtitle = latencyUrl,
+                                onClick = { showLatencyDialog = true },
+                            )
+                        }
+
+                        // ---------- 3. Routing ----------
+                        GroupPage(settingsPage, "routing", LanguageManager.t("routing", "Routing"),
+                            summary = if (splitMode == SettingsStore.SplitTunnelMode.INCLUDE) LanguageManager.t("split_include", "Include only") else LanguageManager.t("split_exclude", "Exclude apps"),
+                        ) {
+                            NavRow(
+                                icon = FoxyIcons.Public,
+                                tint = RxSet.Blue,
+                                title = LanguageManager.t("routing_region", "Routing region"),
+                                subtitle = regionLabel(routingRegion) + " · " + LanguageManager.t("applies_next", "Applies on next connection."),
+                                onClick = { showRoutingRegionDialog = true },
+                            )
+                            RowDivider()
+                            NavRow(
+                                icon = FoxyIcons.Tune,
+                                tint = RxSet.Pink,
+                                title = LanguageManager.t("split_mode", "Split tunneling mode"),
+                                subtitle = if (splitMode == SettingsStore.SplitTunnelMode.INCLUDE) LanguageManager.t("split_include_desc", "Only selected apps use the VPN") else LanguageManager.t("split_exclude_desc", "Selected apps bypass the VPN"),
+                                onClick = { showSplitModeDialog = true },
+                            )
+                            RowDivider()
+                            val activeApps = if (splitMode == SettingsStore.SplitTunnelMode.INCLUDE) includedApps else excludedApps
                             SettingRow(
-                                icon = Icons.Default.Apps,
+                                icon = FoxyIcons.Apps,
                                 tint = RxSet.Pink,
                                 title = LanguageManager.t("split_tunneling", "Split tunneling"),
-                                subtitle = if (excludedApps.isEmpty()) {
-                                    LanguageManager.t("none", "None")
-                                } else {
-                                    LanguageManager.tn("excluded_apps_count", "{n} apps bypass the VPN", excludedApps.size)
-                                },
+                                subtitle = if (activeApps.isEmpty()) LanguageManager.t("none", "None")
+                                else LanguageManager.tn("split_apps_count", "{n} apps selected", activeApps.size),
                                 onClick = { showSplitTunnelPage = true },
                                 trailing = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (excludedApps.isNotEmpty()) {
-                                            ExcludedIconStack(excludedApps.toList())
+                                        if (activeApps.isNotEmpty()) {
+                                            ExcludedIconStack(activeApps.toList())
                                             Spacer(Modifier.width(6.dp))
                                         }
                                         Chevron()
                                     }
                                 },
                             )
-                        }
-
-                        // ---------- DNS ----------
-                        Section(LanguageManager.t("dns_network", "DNS & Network")) {
-                            NavRow(
-                                icon = Icons.Default.Security,
-                                tint = RxSet.Violet,
-                                title = LanguageManager.t("encrypted_dns", "Encrypted DNS"),
-                                subtitle = when (dohProvider) {
-                                    SettingsStore.DohProvider.AUTOMATIC -> LanguageManager.t("doh_auto", "Use whichever answers first")
-                                    SettingsStore.DohProvider.OFF -> LanguageManager.t("doh_off", "Use the network's own DNS")
-                                    else -> dohProvider.addresses.joinToString(", ")
-                                },
-                                onClick = { showDohProviderDialog = true },
-                            )
                             RowDivider()
                             SwitchRow(
-                                icon = Icons.Default.Dns,
-                                tint = RxSet.Cyan,
-                                title = LanguageManager.t("custom_dns", "Use a custom DNS server"),
-                                subtitle = LanguageManager.t("custom_dns_desc", "Send your apps' DNS queries to a server you choose"),
-                                checked = customDnsEnabled,
-                                onChecked = {
-                                    customDnsEnabled = it
-                                    settingsStore.customDnsEnabled = it
-                                },
+                                icon = FoxyIcons.Router,
+                                tint = RxSet.Warn,
+                                title = LanguageManager.t("bypass_local", "Bypass VPN for local network"),
+                                subtitle = LanguageManager.t(
+                                    "bypass_local_desc",
+                                    "Access private and link-local IP addresses directly; internet traffic stays in the VPN. Applies on next connection. Android block-without-VPN can block this access.",
+                                ),
+                                checked = bypassLocal,
+                                onChecked = { bypassLocal = it; settingsStore.bypassLocalNetwork = it },
                             )
-                            AnimatedVisibility(visible = customDnsEnabled) {
-                                Column {
-                                    RowDivider()
-                                    NavRow(
-                                        icon = Icons.Default.Tune,
-                                        tint = RxSet.Cyan,
-                                        title = LanguageManager.t("dns_server", "DNS server"),
-                                        subtitle = SettingsStore.CUSTOM_DNS_PRESETS
-                                            .firstOrNull { it.first == customDnsServer }
-                                            ?.second ?: customDnsServer,
-                                        onClick = { showCustomDnsDialog = true },
-                                    )
-                                }
+                            if (bypassLocal && lockdownActive) {
+                                Text(
+                                    LanguageManager.t("lockdown_warning", "Android \"Block connections without VPN\" is on, so local-network access will still be blocked. Turn it off in Android VPN settings to use this option."),
+                                    color = RxSet.Warn, fontSize = 12.sp, lineHeight = 16.sp,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                )
                             }
                         }
 
-                        // ---------- Local proxy ----------
-                        Section(LanguageManager.t("local_proxy", "Local proxy")) {
-                            SwitchRow(
-                                icon = Icons.Default.Router,
-                                tint = RxSet.Warn,
-                                title = LanguageManager.t("proxy_only", "Proxy-only mode"),
-                                subtitle = LanguageManager.t("proxy_only_desc", "Run only the local SOCKS5 proxy, without a VPN interface"),
-                                checked = proxyOnlyMode,
-                                onChecked = {
-                                    proxyOnlyMode = it
-                                    settingsStore.proxyOnlyMode = it
-                                },
-                            )
-                            RowDivider()
+                        // ---------- 4. Connection ----------
+                        GroupPage(settingsPage, "connection_proxy", LanguageManager.t("connection", "Connection"),
+                            summary = when (httpVersion) { SettingsStore.HttpVersion.HTTP_1 -> "HTTP/1.1"; SettingsStore.HttpVersion.HTTP_2 -> "HTTP/2"; SettingsStore.HttpVersion.HTTP_3 -> "HTTP/3" },
+                        ) {
                             NavRow(
-                                icon = Icons.Default.Link,
-                                tint = RxSet.Cyan,
-                                title = LanguageManager.t("local_address", "Local address"),
-                                subtitle = socksBindAddress,
-                                onClick = { showSocksBindDialog = true },
-                            )
-                            RowDivider()
-                            NavRow(
-                                icon = Icons.Default.Tune,
-                                tint = RxSet.Cyan,
-                                title = LanguageManager.t("local_port", "Local port"),
-                                subtitle = socksPort.toString(),
-                                onClick = { showSocksPortDialog = true },
-                            )
-                        }
-
-                        // ---------- Advanced ----------
-                        Section(LanguageManager.t("advanced", "Advanced")) {
-                            NavRow(
-                                icon = Icons.Default.Public,
+                                icon = FoxyIcons.Public,
                                 tint = RxSet.Blue,
                                 title = LanguageManager.t("custom_edge", "Custom edge address"),
                                 subtitle = customEdgeAddress.ifBlank { LanguageManager.t("not_set", "Not set") },
                                 onClick = { showEdgeAddressDialog = true },
                             )
                             RowDivider()
+                            NavRow(
+                                icon = FoxyIcons.Link,
+                                tint = RxSet.Cyan,
+                                title = LanguageManager.t("transport_protocol", "Transport protocol"),
+                                subtitle = when (httpVersion) { SettingsStore.HttpVersion.HTTP_1 -> "HTTP/1.1"; SettingsStore.HttpVersion.HTTP_2 -> "HTTP/2"; SettingsStore.HttpVersion.HTTP_3 -> "HTTP/3" } + " · " + LanguageManager.t("applies_next", "Applies on next connection."),
+                                onClick = { showTransportDialog = true },
+                            )
+                            RowDivider()
                             SwitchRow(
-                                icon = Icons.Default.Link,
+                                icon = FoxyIcons.Router,
+                                tint = RxSet.Warn,
+                                title = LanguageManager.t("proxy_only", "Proxy-only mode"),
+                                subtitle = LanguageManager.t("proxy_only_desc", "Run only the local SOCKS5 proxy, without a VPN interface"),
+                                checked = proxyOnlyMode,
+                                onChecked = { proxyOnlyMode = it; settingsStore.proxyOnlyMode = it },
+                            )
+                            RowDivider()
+                            NavRow(FoxyIcons.Link, RxSet.Cyan, LanguageManager.t("local_address", "Local address"), socksBindAddress) { showSocksBindDialog = true }
+                            RowDivider()
+                            NavRow(FoxyIcons.Tune, RxSet.Cyan, LanguageManager.t("local_port", "Local port"), socksPort.toString()) { showSocksPortDialog = true }
+                        }
+
+                        // ---------- 4b. Upstream proxy (Mozilla-block path) ----------
+                        GroupPage(settingsPage, "upstream_proxy", LanguageManager.t("upstream_proxy", "Upstream proxy"),
+                            summary = if (upstreamProxyEnabled) LanguageManager.t("active", "Active") else null,
+                        ) {
+                            SwitchRow(
+                                icon = FoxyIcons.Link,
                                 tint = RxSet.Pink,
                                 title = LanguageManager.t("upstream_proxy", "Chain through upstream proxy"),
                                 subtitle = LanguageManager.t("upstream_proxy_desc", "Connect to the VPN server through another proxy first"),
                                 checked = upstreamProxyEnabled,
                                 onChecked = {
-                                    upstreamProxyEnabled = it
-                                    settingsStore.upstreamProxyEnabled = it
+                                    if (it && httpVersion == SettingsStore.HttpVersion.HTTP_3) {
+                                        Toast.makeText(context, LanguageManager.t("h3_upstream_conflict", "HTTP/3 cannot be used while an upstream proxy is enabled."), Toast.LENGTH_LONG).show()
+                                    } else { upstreamProxyEnabled = it; settingsStore.upstreamProxyEnabled = it }
                                 },
                             )
                             AnimatedVisibility(visible = upstreamProxyEnabled) {
                                 Column {
                                     RowDivider()
-                                    NavRow(
-                                        icon = Icons.Default.Tune,
-                                        tint = RxSet.Pink,
-                                        title = LanguageManager.t("proxy_type", "Proxy type"),
-                                        subtitle = upstreamProxyType.name,
-                                        onClick = { showUpstreamProxyTypeDialog = true },
-                                    )
+                                    NavRow(FoxyIcons.Tune, RxSet.Pink, LanguageManager.t("proxy_type", "Proxy type"), upstreamProxyType.name) { showUpstreamProxyTypeDialog = true }
                                     RowDivider()
                                     NavRow(
-                                        icon = Icons.Default.Router,
-                                        tint = RxSet.Pink,
-                                        title = LanguageManager.t("proxy_address", "Proxy address"),
-                                        subtitle = if (upstreamProxyHost.isBlank()) {
-                                            LanguageManager.t("not_set", "Not set")
-                                        } else {
-                                            "$upstreamProxyHost:$upstreamProxyPort"
-                                        },
-                                        onClick = { showUpstreamProxyAddressDialog = true },
-                                    )
+                                        FoxyIcons.Router, RxSet.Pink, LanguageManager.t("proxy_address", "Proxy address"),
+                                        if (upstreamProxyHost.isBlank()) LanguageManager.t("not_set", "Not set") else "$upstreamProxyHost:$upstreamProxyPort",
+                                    ) { showUpstreamProxyAddressDialog = true }
                                     RowDivider()
                                     NavRow(
-                                        icon = Icons.Default.Lock,
-                                        tint = RxSet.Pink,
-                                        title = LanguageManager.t("proxy_credentials", "Proxy credentials"),
-                                        subtitle = if (upstreamProxyUsername.isBlank()) LanguageManager.t("none", "None") else upstreamProxyUsername,
-                                        onClick = { showUpstreamProxyCredentialsDialog = true },
-                                    )
+                                        Icons.Default.Lock, RxSet.Pink, LanguageManager.t("proxy_credentials", "Proxy credentials"),
+                                        if (upstreamProxyUsername.isBlank()) LanguageManager.t("none", "None") else upstreamProxyUsername,
+                                    ) { showUpstreamProxyCredentialsDialog = true }
                                 }
                             }
                         }
 
-                        // ---------- Control-plane relay (compact entry; opens full sub-page on click) ----------
-                        Section(LanguageManager.t("relay_server_menu", "سرور رله")) {
-                            val relaySummary = when {
-                                personalRelayEnabled && personalRelayOnly ->
-                                    LanguageManager.t("relay_summary_personal_only", "فقط رله شخصی فعال است")
-                                sharedRelayEnabled && personalRelayEnabled ->
-                                    LanguageManager.t("relay_summary_both", "رله اشتراکی و شخصی فعال است")
-                                sharedRelayEnabled ->
-                                    LanguageManager.t("relay_summary_shared", "رله اشتراکی فعال است")
-                                personalRelayEnabled ->
-                                    LanguageManager.t("relay_summary_personal", "رله شخصی فعال است")
-                                else ->
-                                    LanguageManager.t("relay_summary_off", "غیرفعال")
+                        // ---------- 5. Anti-Censorship & Performance ----------
+                        GroupPage(settingsPage, "anticensor_perf", LanguageManager.t("anticensor_perf", "Anti-Censorship & Performance"),
+                            summary = if (fragMode == SettingsStore.TlsFragmentMode.OFF) LanguageManager.t("fragment_off", "Fragmentation off") else LanguageManager.t("fragment_on", "Fragmentation on"),
+                        ) {
+                            SwitchRow(
+                                icon = FoxyIcons.Security,
+                                tint = RxSet.Violet,
+                                title = LanguageManager.t("tls_fragmentation", "TLS fragmentation"),
+                                subtitle = LanguageManager.t("tls_fragmentation_desc", "Split the TLS handshake to evade filtering. Disabled by default. Applies on next connection."),
+                                checked = fragMode != SettingsStore.TlsFragmentMode.OFF,
+                                onChecked = {
+                                    val m = if (it) SettingsStore.TlsFragmentMode.COMBINED else SettingsStore.TlsFragmentMode.OFF
+                                    fragMode = m; settingsStore.tlsFragmentMode = m
+                                },
+                            )
+                            AnimatedVisibility(visible = fragMode != SettingsStore.TlsFragmentMode.OFF) {
+                                Column {
+                                    RowDivider()
+                                    NavRow(
+                                        FoxyIcons.Tune, RxSet.Violet, LanguageManager.t("frag_mode", "Fragmentation mode"),
+                                        fragMode.name.lowercase().replaceFirstChar(Char::uppercase),
+                                    ) { showFragModeDialog = true }
+                                }
                             }
+                            RowDivider()
                             NavRow(
-                                icon = Icons.Default.Router,
-                                tint = RxSet.Cyan,
-                                title = LanguageManager.t("relay_server_menu", "سرور رله"),
-                                subtitle = relaySummary,
-                                onClick = { showRelaySettingsPage = true },
+                                icon = Icons.Default.Lock,
+                                tint = RxSet.Blue,
+                                title = LanguageManager.t("tls_fingerprint", "Browser TLS fingerprint"),
+                                subtitle = fingerprint.name.lowercase().replaceFirstChar(Char::uppercase) + (if (httpVersion == SettingsStore.HttpVersion.HTTP_3) " · " + LanguageManager.t("fp_not_h3", "not used with HTTP/3") else ""),
+                                onClick = { showFingerprintDialog = true },
                             )
-                        }
-
-                        // ---------- Account ----------
-                        Section(LanguageManager.t("account_section", "Account")) {
+                            RowDivider()
                             NavRow(
-                                icon = Icons.Default.AccountCircle,
+                                icon = FoxyIcons.Speed,
                                 tint = RxSet.Good,
-                                title = LanguageManager.t("manage_account", "Manage account"),
-                                subtitle = LanguageManager.t("manage_account_desc", "Subscription status and data usage"),
-                                onClick = onOpenAccount,
+                                title = LanguageManager.t("multiplex", "Multiplex concurrency"),
+                                subtitle = LanguageManager.tn("stream_count", "{n} streams", streams) + (if (httpVersion != SettingsStore.HttpVersion.HTTP_2) " · " + LanguageManager.t("http2_only", "HTTP/2 only") else ""),
+                                onClick = { showStreamsDialog = true },
                             )
                             RowDivider()
-                            SettingRow(
-                                icon = Icons.AutoMirrored.Filled.Logout,
-                                tint = RxSet.Bad,
-                                title = LanguageManager.t("sign_out", "Sign out"),
-                                subtitle = null,
-                                titleColor = RxSet.Bad,
-                                onClick = onSignOut,
+                            NavRow(
+                                icon = FoxyIcons.Public,
+                                tint = RxSet.Cyan,
+                                title = LanguageManager.t("ip_mode", "IP protocol mode"),
+                                subtitle = when (ipMode) {
+                                    SettingsStore.IpMode.DUAL_STACK -> "Dual-Stack"
+                                    SettingsStore.IpMode.PREFER_IPV4 -> "Prefer IPv4"
+                                    SettingsStore.IpMode.PREFER_IPV6 -> "Prefer IPv6"
+                                    SettingsStore.IpMode.IPV4_ONLY -> "IPv4 only"
+                                    SettingsStore.IpMode.IPV6_ONLY -> "IPv6 only"
+                                },
+                                onClick = { showIpModeDialog = true },
                             )
                         }
 
-                        // ---------- About ----------
-                        Section(LanguageManager.t("about", "About")) {
-                            NavRow(
-                                icon = Icons.Default.Description,
-                                tint = RxSet.Cyan,
-                                title = LanguageManager.t("view_logs", "View logs"),
-                                subtitle = LanguageManager.t("view_logs_desc", "Recent connection activity"),
-                                onClick = onOpenLogs,
+                        // ---------- 6. Connection Health ----------
+                        GroupPage(settingsPage, "connection_health", LanguageManager.t("connection_health", "Connection Health"), summary = healthLabel(tunnelHealth)) {
+                            SettingRow(
+                                icon = FoxyIcons.Speed,
+                                tint = healthColor(tunnelHealth),
+                                title = LanguageManager.t("tunnel_health", "Tunnel health"),
+                                subtitle = tunnelLatency?.let { "$it ms" } ?: LanguageManager.t("health_no_data", "Measured by real traffic through the tunnel"),
+                                trailing = {
+                                    Text(healthLabel(tunnelHealth), color = healthColor(tunnelHealth), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                },
                             )
                             RowDivider()
+                            SwitchRow(
+                                icon = FoxyIcons.Security,
+                                tint = RxSet.Good,
+                                title = LanguageManager.t("auto_recovery", "Automatic connection recovery"),
+                                subtitle = LanguageManager.t("auto_recovery_desc", "Reconnect after repeated confirmed proxy-path failures; stay in the selected country. Applies on next connection."),
+                                checked = autoRecovery,
+                                onChecked = { autoRecovery = it; settingsStore.automaticRecovery = it },
+                            )
+                        }
+
+                        // About sub-page (opened from App → About)
+                        GroupPage(settingsPage, "about_page", LanguageManager.t("about", "About")) {
                             SettingRow(
                                 icon = Icons.Default.Info,
                                 tint = RxSet.Violet,
@@ -652,18 +969,18 @@ fun SettingsScreen(
                             )
                             RowDivider()
                             NavRow(
-                                icon = Icons.Default.SystemUpdateAlt,
+                                icon = FoxyIcons.SystemUpdateAlt,
                                 tint = RxSet.Cyan,
                                 title = updateSettingsLabel(currentLang, "title"),
-                                subtitle = updateSettingsLabel(currentLang, "subtitle"),
+                                subtitle = null,
                                 onClick = { showAndroidUpdateDialog = true },
                             )
                             RowDivider()
                             NavRow(
-                                icon = Icons.Default.Code,
+                                icon = FoxyIcons.Code,
                                 tint = RxSet.Violet,
                                 title = LanguageManager.t("source_code", "Source code"),
-                                subtitle = "https://github.com/omidrx0/RxFoxyVPN",
+                                subtitle = null,
                                 onClick = {
                                     try {
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/omidrx0/RxFoxyVPN"))
@@ -673,15 +990,17 @@ fun SettingsScreen(
                             )
                         }
 
-                        // ---------- footer ----------
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Image(painterResource(id = R.drawable.rx_logo), contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("RXFOXYVPN  ·  V${BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")}", color = RxSet.Mute, fontSize = 12.sp)
+                        // Version footer only on the main settings list (not inside sub-pages)
+                        if (settingsPage == null) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Image(painterResource(id = R.drawable.rx_logo), contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("RXFOXYVPN  ·  V${BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")}", color = RxSet.Mute, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -740,7 +1059,7 @@ private fun PageHeader(title: String, subtitle: String?, onBack: () -> Unit, tra
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = RxSet.Text, modifier = Modifier.size(20.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = LanguageManager.t("back", "Back"), tint = RxSet.Text, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(title, color = RxSet.Text, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
@@ -757,25 +1076,125 @@ private fun PageHeader(title: String, subtitle: String?, onBack: () -> Unit, tra
 
 @Composable
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(width = 3.dp, height = 12.dp)
-                    .clip(CircleShape)
-                    .background(Brush.verticalGradient(listOf(RxSet.Cyan, RxSet.Pink)))
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (title.isNotBlank()) {
+            Text(
+                title,
+                color = RxSet.Mute,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                modifier = Modifier.padding(horizontal = 8.dp),
             )
-            Spacer(Modifier.width(8.dp))
-            Text(title, color = RxSet.Mute, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp)
         }
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             color = RxSet.Panel,
             border = BorderStroke(1.dp, RxSet.Line),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(content = content)
         }
+    }
+}
+
+/** Shows [content] only while its settings page is the open one; the category list lives on the main page. */
+@Composable
+private fun GroupPage(
+    current: String?,
+    key: String,
+    title: String,
+    summary: String? = null,
+    initiallyExpanded: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (current == key) Section(title, content)
+}
+
+private fun groupTitle(key: String): String = when (key) {
+    "general" -> LanguageManager.t("general", "General")
+    "network_dns" -> LanguageManager.t("network_dns", "Network & DNS")
+    "routing" -> LanguageManager.t("routing", "Routing")
+    "connection_proxy" -> LanguageManager.t("connection_proxy", "Connection & Proxy")
+    "anticensor_perf" -> LanguageManager.t("anticensor_perf", "Anti-Censorship & Performance")
+    "connection_health" -> LanguageManager.t("connection_health", "Connection Health")
+    "about_page" -> LanguageManager.t("about", "About")
+    "upstream_proxy" -> LanguageManager.t("upstream_proxy", "Upstream proxy")
+    else -> key
+}
+
+private fun dohSummary(p: SettingsStore.DohProvider): String = when (p) {
+    SettingsStore.DohProvider.AUTOMATIC -> LanguageManager.t("doh_auto", "Use whichever answers first")
+    SettingsStore.DohProvider.OFF -> LanguageManager.t("doh_off", "Use the network's own DNS")
+    else -> p.label + " · " + p.addresses.joinToString(", ")
+}
+
+private fun healthLabel(h: TunnelHealth): String = when (h) {
+    TunnelHealth.CONNECTED -> LanguageManager.t("health_connected", "Connected")
+    TunnelHealth.CONNECTING -> LanguageManager.t("health_connecting", "Connecting")
+    TunnelHealth.DISCONNECTED -> LanguageManager.t("health_disconnected", "Disconnected")
+    TunnelHealth.ERROR -> LanguageManager.t("health_error", "Error")
+    TunnelHealth.RECOVERING -> LanguageManager.t("health_recovering", "Recovering")
+}
+
+private fun healthColor(h: TunnelHealth): Color = when (h) {
+    TunnelHealth.CONNECTED -> RxSet.Good
+    TunnelHealth.CONNECTING, TunnelHealth.RECOVERING -> RxSet.Warn
+    TunnelHealth.ERROR -> RxSet.Bad
+    TunnelHealth.DISCONNECTED -> RxSet.Mute
+}
+
+@Composable
+private fun <T> ChoiceDialog(
+    title: String,
+    options: List<Triple<T, String, String?>>,
+    current: T,
+    onDismiss: () -> Unit,
+    onConfirm: (T) -> Unit,
+) {
+    var selected by remember { mutableStateOf(current) }
+    RxDialog(title = title, onDismiss = onDismiss, onConfirm = { onConfirm(selected) }) {
+        options.forEach { (value, label, detail) -> ChoiceRow(selected == value, label, detail) { selected = value } }
+    }
+}
+
+@Composable
+private fun StreamsDialog(current: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var text by remember(current) { mutableStateOf(current.toString()) }
+    val parsed = text.toIntOrNull()
+    val valid = parsed != null && parsed in 2..128
+    RxDialog(
+        title = LanguageManager.t("multiplex", "Multiplex concurrency"),
+        onDismiss = onDismiss,
+        onConfirm = { parsed?.let(onConfirm) },
+        confirmEnabled = valid,
+    ) {
+        Text(LanguageManager.t("multiplex_range", "Streams per HTTP/2 connection, 2 to 128. Default: 32. Applies on next connection."), color = RxSet.Mute, fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
+        RxField(
+            value = text,
+            onChange = { text = it.filter(Char::isDigit).take(3) },
+            label = LanguageManager.t("streams", "Streams"),
+            keyboardType = KeyboardType.Number,
+            isError = text.isNotBlank() && !valid,
+        )
+    }
+}
+
+@Composable
+private fun LatencyUrlDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var value by remember(current) { mutableStateOf(current) }
+    val trimmed = value.trim()
+    val valid = trimmed.isEmpty() || SettingsStore.isValidProbeUrl(trimmed)
+    RxDialog(
+        title = LanguageManager.t("latency_url", "Latency test URL"),
+        onDismiss = onDismiss,
+        onConfirm = { onConfirm(trimmed) },
+        confirmEnabled = valid,
+    ) {
+        Text(LanguageManager.t("latency_url_desc", "HTTPS address fetched through the tunnel to measure latency and health. Leave empty for the default."), color = RxSet.Mute, fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
+        RxField(value = value, onChange = { value = it }, label = "URL", keyboardType = KeyboardType.Uri, isError = !valid)
     }
 }
 
@@ -813,17 +1232,18 @@ private fun SettingRow(
     onClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
 ) {
+    val vPad = if (subtitle == null) 13.dp else 12.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = vPad),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconTile(icon, tint)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = titleColor, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+            Text(title, color = titleColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             if (subtitle != null) {
                 Text(subtitle, color = RxSet.Mute, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
@@ -833,6 +1253,17 @@ private fun SettingRow(
             trailing()
         }
     }
+}
+
+private fun regionLabel(region: SettingsStore.RoutingRegion): String = when (region) {
+    SettingsStore.RoutingRegion.NONE -> LanguageManager.t("region_none", "Off")
+    SettingsStore.RoutingRegion.IR -> LanguageManager.t("region_ir", "Iran")
+    SettingsStore.RoutingRegion.CN -> LanguageManager.t("region_cn", "China")
+    SettingsStore.RoutingRegion.RU -> LanguageManager.t("region_ru", "Russia")
+    SettingsStore.RoutingRegion.AF -> LanguageManager.t("region_af", "Afghanistan")
+    SettingsStore.RoutingRegion.TR -> LanguageManager.t("region_tr", "Turkey")
+    SettingsStore.RoutingRegion.ID -> LanguageManager.t("region_id", "Indonesia")
+    SettingsStore.RoutingRegion.BR -> LanguageManager.t("region_br", "Brazil")
 }
 
 @Composable
@@ -928,7 +1359,7 @@ private fun AppIcon(packageName: String, size: Dp, modifier: Modifier = Modifier
         if (bmp != null) {
             Image(bitmap = bmp, contentDescription = null, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(Icons.Default.Apps, contentDescription = null, tint = RxSet.Mute, modifier = Modifier.size(size * 0.5f))
+            Icon(FoxyIcons.Apps, contentDescription = null, tint = RxSet.Mute, modifier = Modifier.size(size * 0.5f))
         }
     }
 }
@@ -965,6 +1396,7 @@ private data class InstalledAppEntry(val packageName: String, val label: String,
 @Composable
 private fun SplitTunnelPage(
     current: Set<String>,
+    includeMode: Boolean = false,
     onClose: () -> Unit,
     onSave: (Set<String>) -> Unit,
 ) {
@@ -1026,22 +1458,24 @@ private fun SplitTunnelPage(
             Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // info card
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(RxSet.Blue.copy(alpha = 0.14f), RxSet.Violet.copy(alpha = 0.12f))))
-                    .border(1.dp, RxSet.Line2, RoundedCornerShape(14.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = RxSet.Cyan, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    LanguageManager.t("split_hint", "Selected apps bypass the VPN and use your normal internet connection."),
-                    color = RxSet.Text, fontSize = 12.5.sp, lineHeight = 18.sp,
-                )
+            // Only show a short tip in Include mode (must pick at least one app).
+            if (includeMode) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.linearGradient(listOf(RxSet.Blue.copy(alpha = 0.14f), RxSet.Violet.copy(alpha = 0.12f))))
+                        .border(1.dp, RxSet.Line2, RoundedCornerShape(14.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = RxSet.Cyan, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        LanguageManager.t("split_hint_include", "Only the selected apps use the VPN; everything else uses your normal connection. Pick at least one app."),
+                        color = RxSet.Text, fontSize = 12.5.sp, lineHeight = 18.sp,
+                    )
+                }
             }
 
             // Show system apps toggle row
@@ -1355,12 +1789,13 @@ private fun LanguagePickerDialog(
 @Composable
 private fun DohProviderPickerDialog(
     current: SettingsStore.DohProvider,
+    title: String = LanguageManager.t("encrypted_dns", "Encrypted DNS"),
     onDismiss: () -> Unit,
     onConfirm: (SettingsStore.DohProvider) -> Unit,
 ) {
     var selected by remember { mutableStateOf(current) }
     RxDialog(
-        title = LanguageManager.t("encrypted_dns", "Encrypted DNS"),
+        title = title,
         onDismiss = onDismiss,
         onConfirm = { onConfirm(selected) },
     ) {
@@ -1485,7 +1920,7 @@ private fun TunnelMtuDialog(
         confirmEnabled = valid,
     ) {
         Text(
-            LanguageManager.t("tunnel_mtu_range", "Choose a value from 1280 to 9000. Default: 1400."),
+            LanguageManager.t("tunnel_mtu_range", "Choose a value from 1280 to 9000. Default: 1280."),
             color = RxSet.Mute,
             fontSize = 12.sp,
         )
@@ -1652,7 +2087,7 @@ private fun RelaySettingsPage(
                 )
                 RowDivider()
                 SwitchRow(
-                    icon = Icons.Default.Public,
+                    icon = FoxyIcons.Public,
                     tint = RxSet.Cyan,
                     title = LanguageManager.t("relay_shared", "Shared relay (automatic)"),
                     subtitle = LanguageManager.t(
@@ -1666,7 +2101,7 @@ private fun RelaySettingsPage(
 
             Section(LanguageManager.t("relay_personal", "Personal relay")) {
                 SwitchRow(
-                    icon = Icons.Default.Router,
+                    icon = FoxyIcons.Router,
                     tint = RxSet.Pink,
                     title = LanguageManager.t("relay_personal", "Personal relay"),
                     subtitle = LanguageManager.t(
@@ -1678,7 +2113,7 @@ private fun RelaySettingsPage(
                 )
                 RowDivider()
                 NavRow(
-                    icon = Icons.Default.Link,
+                    icon = FoxyIcons.Link,
                     tint = RxSet.Pink,
                     title = LanguageManager.t("relay_personal_url", "Relay URL"),
                     // Only the host is shown: the URL's secret never appears on screen after it is saved.
@@ -1698,7 +2133,7 @@ private fun RelaySettingsPage(
                 )
                 RowDivider()
                 NavRow(
-                    icon = Icons.Default.Speed,
+                    icon = FoxyIcons.Speed,
                     tint = RxSet.Good,
                     title = if (relayTesting) {
                         LanguageManager.t("relay_testing", "Testing…")

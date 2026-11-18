@@ -3,6 +3,8 @@ package foxy
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 )
 
 // FxaAPIError is an error answer of the Firefox Accounts API.
@@ -21,9 +23,35 @@ type NeedLoginError struct{ Msg string }
 func (e *NeedLoginError) Error() string { return e.Msg }
 
 // QuotaExceededError means the monthly Firefox VPN allowance is used up.
-type QuotaExceededError struct{ Msg string }
+// ResetAt is the raw X-Quota-Reset header (RFC3339 or unix seconds), used by the pool failover.
+type QuotaExceededError struct {
+	Msg     string
+	ResetAt string
+}
 
 func (e *QuotaExceededError) Error() string { return e.Msg }
+
+// RetryAt parses the reset hint (RFC3339 or unix seconds). Zero time when absent/unparsable.
+func (e *QuotaExceededError) RetryAt() time.Time {
+	raw := strings.TrimSpace(e.ResetAt)
+	if raw == "" {
+		return time.Time{}
+	}
+	var n int64
+	if _, err := fmt.Sscanf(raw, "%d", &n); err == nil && n > 0 {
+		if n > 1_000_000_000_000 { // millis
+			return time.UnixMilli(n)
+		}
+		return time.Unix(n, 0).UTC()
+	}
+	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t
+	}
+	return time.Time{}
+}
 
 // FastlyChallengeError means the Fastly anti-bot challenge could not be solved.
 type FastlyChallengeError struct{ Msg string }
@@ -73,6 +101,27 @@ var (
 	errTokenInvalid    = errors.New("access token was rejected by Guardian")
 	errNoChallengePage = errors.New("host did not serve a Fastly challenge page")
 )
+
+// ErrTokenInvalid is the exported sentinel matched by the pool failover logic.
+// It is satisfied by TokenInvalidError as well as by errTokenInvalid-wrapping chains.
+var ErrTokenInvalid = errTokenInvalid
+
+// TokenInvalidError carries the Guardian HTTP status that rejected the access token.
+// 401 → the session is dead (re-auth required); 403 → the account is not entitled (
+// retry at a later time). Both unwrap to ErrTokenInvalid so legacy callers keep working.
+type TokenInvalidError struct {
+	Status int
+	Msg    string
+}
+
+func (e *TokenInvalidError) Error() string {
+	if e.Msg != "" {
+		return e.Msg
+	}
+	return fmt.Sprintf("guardian rejected the access token (HTTP %d)", e.Status)
+}
+
+func (e *TokenInvalidError) Unwrap() error { return ErrTokenInvalid }
 
 func upstreamf(format string, args ...any) error {
 	return &UpstreamError{Msg: fmt.Sprintf(format, args...)}

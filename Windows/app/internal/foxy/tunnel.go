@@ -221,6 +221,48 @@ type TokenSource struct {
 	getMu sync.Mutex
 	curMu sync.RWMutex
 	cur   *ProxyPass
+
+	// supply, when set, overrides the legacy state.json account (pool mode): it yields a
+	// Guardian-usable access token for the ACTIVE POOL account.
+	supply AccessTokenSupplier
+	// failover, when set, is consulted once per failed mint. If it reports handled=true the
+	// mint is retried exactly once (the caller has switched to another pool account by then).
+	failover func(ctx context.Context, err error) bool
+}
+
+// AccessTokenSupplier yields a Guardian-usable access token; force=true demands a refresh.
+type AccessTokenSupplier func(ctx context.Context, force bool) (string, error)
+
+// SetAccessTokenSupplier installs the pool supplier (pass nil to return to the legacy account).
+func (t *TokenSource) SetAccessTokenSupplier(s AccessTokenSupplier) {
+	t.getMu.Lock()
+	defer t.getMu.Unlock()
+	if t.supply != nil {
+		// the identity changed → drop the cached pass; keeping it would let the old
+		// account's pass ride on the new account's connection
+		t.curMu.Lock()
+		t.cur = nil
+		t.curMu.Unlock()
+	}
+	t.supply = s
+}
+
+// SetMintFailover installs the one-shot failover hook (pass nil to disable).
+func (t *TokenSource) SetMintFailover(fn func(ctx context.Context, err error) bool) {
+	t.getMu.Lock()
+	defer t.getMu.Unlock()
+	t.failover = fn
+}
+
+func (t *TokenSource) mint(ctx context.Context) (*ProxyPass, error) {
+	if t.supply != nil {
+		access, err := t.supply(ctx, false)
+		if err != nil {
+			return nil, err
+		}
+		return t.acc.MintPassForAccount(ctx, access)
+	}
+	return t.acc.MintPass(ctx)
 }
 
 // NewTokenSource wraps an account.
@@ -240,7 +282,10 @@ func (t *TokenSource) Get(ctx context.Context) (string, error) {
 	if p := t.Current(); p != nil && p.Exp-float64(time.Now().Unix()) > passRenewMargin {
 		return p.Token, nil
 	}
-	pass, err := t.acc.MintPass(ctx)
+	pass, err := t.mint(ctx)
+	if err != nil && t.failover != nil && t.failover(ctx, err) {
+		pass, err = t.mint(ctx)
+	}
 	if err != nil {
 		return "", err
 	}

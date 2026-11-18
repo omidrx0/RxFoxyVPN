@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// windowCtl is what the panel's own title bar (web/app.js) can ask the window to do.
+// windowCtl is what the panel's own title bar (ui/app.js) can ask the window to do.
 //
 // Moving and resizing run in a small goroutine that follows the mouse with plain Win32 calls
 // (GetCursorPos / SetWindowPos). Nothing travels through the JavaScript bridge while the mouse

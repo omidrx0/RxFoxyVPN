@@ -6,10 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,26 +24,35 @@ import (
 
 	"rxvpn/internal/foxy"
 	"rxvpn/internal/platform"
-	"rxvpn/packaging"
 )
 
 const (
-	fxaWinWidth, fxaWinHeight = 500, 690
-	wmAppDispatch             = wmApp + 1
-	wsOverlappedWindow        = 0x00CF0000
+	wmAppDispatch = wmApp + 1
 )
 
 var (
 	pUpdateWindow      = user32.NewProc("UpdateWindow")
 	pPostThreadMessage = user32.NewProc("PostThreadMessageW")
+	pIsWindow          = user32.NewProc("IsWindow")
 	pSetFocus          = user32.NewProc("SetFocus")
 	pGetCurrentThread  = kernel32.NewProc("GetCurrentThreadId")
+
+	fxaBrowserParent atomic.Uintptr
+	fxaTitlebarInset atomic.Int64
 )
 
-// LaunchFxaWebViewHelper starts an isolated child RXFOXYVPN process running the Mozilla WebChannel
-// sign-in window with an ephemeral WebView2 profile. Secrets are passed via environment variables,
-// never on the command line.
-func LaunchFxaWebViewHelper(ipcURL, ipcSecret, email string) (func(), error) {
+func setFxaBrowserParent(hwnd uintptr, titlebarInset int) {
+	fxaBrowserParent.Store(hwnd)
+	fxaTitlebarInset.Store(int64(titlebarInset))
+}
+
+// LaunchFxaWebViewHelper starts the WebView2 child surface inside the app's main window.
+// Secrets and the parent window handle are passed via environment variables, never on the command line.
+func LaunchFxaWebViewHelper(ipcURL, ipcSecret, email, proxyAddress string) (func(), error) {
+	parent := fxaBrowserParent.Load()
+	if parent == 0 {
+		return nil, errors.New("the app window is unavailable for in-app browser sign-in")
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -49,6 +62,9 @@ func LaunchFxaWebViewHelper(ipcURL, ipcSecret, email string) (func(), error) {
 		"RXVPN_FXA_IPC_URL="+ipcURL,
 		"RXVPN_FXA_IPC_SECRET="+ipcSecret,
 		"RXVPN_FXA_EMAIL="+email,
+		"RXVPN_FXA_PROXY="+proxyAddress,
+		"RXVPN_FXA_PARENT_HWND="+strconv.FormatUint(uint64(parent), 10),
+		"RXVPN_FXA_TITLEBAR_INSET="+strconv.FormatInt(fxaTitlebarInset.Load(), 10),
 	)
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -67,27 +83,7 @@ func LaunchFxaWebViewHelper(ipcURL, ipcSecret, email string) (func(), error) {
 	return stop, nil
 }
 
-// webView2WebChannelHookJS forwards Mozilla FxA WebChannel events through WebView2's native
-// chrome.webview.postMessage strictly when running on https://accounts.firefox.com.
-const webView2WebChannelHookJS = `(function(){
-  if (window.__rxFxaHooked) return;
-  if (!window.location || window.location.origin !== 'https://accounts.firefox.com') return;
-  if (!window.chrome || !window.chrome.webview || typeof window.chrome.webview.postMessage !== 'function') return;
-  window.__rxFxaHooked = true;
-  window.addEventListener('WebChannelMessageToChrome', function(e) {
-    try {
-      if (!window.location || window.location.origin !== 'https://accounts.firefox.com') return;
-      var d = e && e.detail;
-      if (d == null) return;
-      window.chrome.webview.postMessage(JSON.stringify({
-        origin: window.location.origin,
-        detail: typeof d === 'string' ? d : JSON.stringify(d)
-      }));
-    } catch (_) {}
-  }, true);
-})();`
-
-// RunFxaSignInWindow runs the isolated Mozilla Sign-in WebView2 helper mode (--fxa-webview).
+// RunFxaSignInWindow runs the in-app Mozilla sign-in WebView2 child surface (--fxa-webview).
 func RunFxaSignInWindow() error {
 	runtime.LockOSThread()
 	platform.SetAppUserModelID("RXVPN.Panel.SignIn")
@@ -96,11 +92,16 @@ func RunFxaSignInWindow() error {
 	ipcURL := os.Getenv("RXVPN_FXA_IPC_URL")
 	ipcSecret := os.Getenv("RXVPN_FXA_IPC_SECRET")
 	email := os.Getenv("RXVPN_FXA_EMAIL")
+	proxyAddress := os.Getenv("RXVPN_FXA_PROXY")
+	parentRaw := os.Getenv("RXVPN_FXA_PARENT_HWND")
+	titlebarInsetRaw := os.Getenv("RXVPN_FXA_TITLEBAR_INSET")
 	_ = os.Unsetenv("RXVPN_FXA_IPC_SECRET")
+	_ = os.Unsetenv("RXVPN_FXA_PROXY")
+	_ = os.Unsetenv("RXVPN_FXA_PARENT_HWND")
+	_ = os.Unsetenv("RXVPN_FXA_TITLEBAR_INSET")
 	if ipcURL == "" || ipcSecret == "" {
 		return errors.New("missing FxA IPC configuration")
 	}
-
 	postIPC := func(payload map[string]string) error {
 		raw, err := json.Marshal(payload)
 		if err != nil {
@@ -119,6 +120,37 @@ func RunFxaSignInWindow() error {
 		}
 		_ = resp.Body.Close()
 		return nil
+	}
+
+	parentValue, parentErr := strconv.ParseUint(parentRaw, 10, strconv.IntSize)
+	titlebarInset, insetErr := strconv.Atoi(titlebarInsetRaw)
+	if parentErr != nil || parentValue == 0 || insetErr != nil || titlebarInset < 0 || titlebarInset > 200 {
+		err := errors.New("invalid in-app browser parent window")
+		_ = postIPC(map[string]string{"event": "error", "error": "The in-app browser is unavailable"})
+		return err
+	}
+	parent := uintptr(parentValue)
+	if isWindow, _, _ := pIsWindow.Call(parent); isWindow == 0 {
+		err := errors.New("in-app browser parent window is no longer available")
+		_ = postIPC(map[string]string{"event": "error", "error": "The in-app browser is unavailable"})
+		return err
+	}
+
+	host, port, proxyErr := net.SplitHostPort(proxyAddress)
+	portNumber, portErr := strconv.Atoi(port)
+	if proxyErr != nil || host != "127.0.0.1" || portErr != nil || portNumber < 1 || portNumber > 65535 {
+		err := errors.New("invalid browser sign-in proxy address")
+		_ = postIPC(map[string]string{"event": "error", "error": "The browser sign-in proxy is unavailable"})
+		return err
+	}
+	browserArgs := strings.TrimSpace(os.Getenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"))
+	if browserArgs != "" {
+		browserArgs += " "
+	}
+	browserArgs += "--proxy-server=http://" + proxyAddress
+	if err := os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", browserArgs); err != nil {
+		_ = postIPC(map[string]string{"event": "error", "error": "Could not configure the browser sign-in proxy"})
+		return fmt.Errorf("configure WebView2 sign-in proxy: %w", err)
 	}
 
 	tempDataDir, err := os.MkdirTemp("", "rxvpn-fxa-wv2-*")
@@ -192,38 +224,34 @@ func RunFxaSignInWindow() error {
 	}
 	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
-	sw, _, _ := pGetSystemMetrics.Call(0) // SM_CXSCREEN
-	sh, _, _ := pGetSystemMetrics.Call(1) // SM_CYSCREEN
-	posX := (int(sw) - fxaWinWidth) / 2
-	posY := (int(sh) - fxaWinHeight) / 2
-	titlePtr := utf16("Mozilla Sign-in — RXFOXYVPN")
+	titlePtr := utf16("RXFOXYVPN — Sign in with browser")
+	parentBounds := getClientRect(parent)
+	childTop := scaledTitlebarInset(parent, titlebarInset)
+	childHeight := max(0, parentBounds.h()-childTop)
 
 	hwnd, _, _ = pCreateWindowEx.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(titlePtr)),
-		wsOverlappedWindow,
-		uintptr(max(0, posX)),
-		uintptr(max(0, posY)),
-		uintptr(fxaWinWidth),
-		uintptr(fxaWinHeight),
-		0, 0, hinstance, 0,
+		wsChild|wsVisible,
+		0,
+		uintptr(childTop),
+		uintptr(max(1, parentBounds.w())),
+		uintptr(max(1, childHeight)),
+		parent, 0, hinstance, 0,
 	)
 	if hwnd == 0 {
-		_ = postIPC(map[string]string{"event": "error", "error": "Could not create sign-in window"})
+		_ = postIPC(map[string]string{"event": "error", "error": "Could not open the in-app sign-in page"})
 		return errors.New("CreateWindowExW failed")
-	}
-
-	if small := loadIconBytes("rxvpn_app.ico", packaging.IconICO, 16, 16); small != 0 {
-		pSendMessage.Call(hwnd, wmSetIcon, 0, small)
-	}
-	if big := loadIconBytes("rxvpn_app.ico", packaging.IconICO, 32, 32); big != 0 {
-		pSendMessage.Call(hwnd, wmSetIcon, 1, big)
 	}
 
 	showWindow(hwnd, swShow)
 	pUpdateWindow.Call(hwnd)
 	pSetFocus.Call(hwnd)
+
+	stopBoundsSync := make(chan struct{})
+	defer close(stopBoundsSync)
+	go syncFxaChildBounds(hwnd, parent, titlebarInset, &closed, stopBoundsSync)
 
 	chromium = edge.NewChromium()
 	chromium.DataPath = tempDataDir
@@ -277,9 +305,12 @@ func RunFxaSignInWindow() error {
 		return ErrNoWebView
 	}
 	chromium.Resize()
+	parentBounds = getClientRect(parent)
+	childTop = scaledTitlebarInset(parent, titlebarInset)
+	setWindowPos(hwnd, 0, childTop, parentBounds.w(), parentBounds.h()-childTop, swpNoActivate)
 
 	if settings, sErr := chromium.GetSettings(); sErr == nil && settings != nil {
-		_ = settings.PutUserAgent(foxy.UserAgent)
+		_ = settings.PutUserAgent(foxy.BrowserSignInUserAgent)
 		_ = settings.PutAreDefaultContextMenusEnabled(false)
 		_ = settings.PutAreDevToolsEnabled(false)
 	}
@@ -299,7 +330,7 @@ func RunFxaSignInWindow() error {
 		}
 	}
 
-	chromium.Init(webView2WebChannelHookJS)
+	chromium.Init(foxy.WebChannelHookJS)
 	chromium.Navigate(foxy.WebChannelLoginURL(email))
 
 	var msg winMsg
@@ -326,4 +357,48 @@ func RunFxaSignInWindow() error {
 		_ = postIPC(map[string]string{"event": "closed"})
 	}
 	return nil
+}
+
+func scaledTitlebarInset(parent uintptr, logicalInset int) int {
+	dpi, _, _ := pGetDpiForWindow.Call(parent)
+	if dpi == 0 {
+		return logicalInset
+	}
+	return (logicalInset*int(dpi) + 48) / 96
+}
+
+func syncFxaChildBounds(child, parent uintptr, logicalInset int, closed *atomic.Bool, stop <-chan struct{}) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	initial := getClientRect(parent)
+	last := rect{
+		Top:    int32(scaledTitlebarInset(parent, logicalInset)),
+		Right:  int32(initial.w()),
+		Bottom: int32(initial.h()),
+	}
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			if closed.Load() {
+				return
+			}
+			if isWindow, _, _ := pIsWindow.Call(parent); isWindow == 0 {
+				postMessage(child, wmClose, 0, 0)
+				return
+			}
+			bounds := getClientRect(parent)
+			top := scaledTitlebarInset(parent, logicalInset)
+			if bounds.w() <= 0 || bounds.h() <= top {
+				continue
+			}
+			next := rect{Top: int32(top), Right: int32(bounds.w()), Bottom: int32(bounds.h())}
+			if next == last {
+				continue
+			}
+			setWindowPos(child, 0, top, bounds.w(), bounds.h()-top, swpNoActivate)
+			last = next
+		}
+	}
 }

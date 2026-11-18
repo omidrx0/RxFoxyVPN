@@ -21,8 +21,6 @@ import (
 	"time"
 
 	utls "github.com/refraction-networking/utls"
-
-	"rxvpn/internal/sysproxy"
 )
 
 const maxBody = 16 << 20
@@ -44,7 +42,9 @@ func (r *Response) OK() bool { return r.Status < 400 }
 // It integrates the Fastly "Client Challenge" solver (automatic PoW/PAT/clientmetrics +
 // interactive image CAPTCHA) and the HTTP 451 / unreachable RelayFallbackCoordinator.
 type ControlPlane struct {
-	client *http.Client
+	client                   *http.Client
+	apiProxy                 *url.URL
+	browserSignInDNSResolver *net.Resolver
 
 	jarMu   sync.RWMutex
 	jar     http.CookieJar
@@ -52,6 +52,27 @@ type ControlPlane struct {
 	captcha *CaptchaBroker
 
 	challengeMu sync.Mutex
+}
+
+// SetBrowserSignInDNS configures the direct DNS server used by the local
+// browser sign-in proxy. The operating-system resolver remains its fallback.
+func (c *ControlPlane) SetBrowserSignInDNS(server string) error {
+	if c == nil {
+		return errors.New("control-plane client is unavailable")
+	}
+	server = strings.TrimSpace(server)
+	var resolver *net.Resolver
+	if server != "" {
+		ip := net.ParseIP(server)
+		if ip == nil {
+			return fmt.Errorf("browser sign-in DNS server must be an IP address")
+		}
+		resolver = newBrowserSignInResolver(net.JoinHostPort(ip.String(), "53"))
+	}
+	c.jarMu.Lock()
+	c.browserSignInDNSResolver = resolver
+	c.jarMu.Unlock()
+	return nil
 }
 
 // dynamicCookieJar delegates to ControlPlane's current CookieJar so ClearCookies() can
@@ -79,13 +100,12 @@ func (d dynamicCookieJar) Cookies(u *url.URL) []*http.Cookie {
 	return j.Cookies(u)
 }
 
-// NewControlPlane builds the client. apiProxy (optional) is used ONLY for these control
-// requests; without it the environment / Windows system proxy is followed.
+// NewControlPlane builds the client. apiProxy (optional) is the only proxy used
+// for control-plane requests; ambient environment and Windows system proxies are ignored.
 func NewControlPlane(apiProxy string) (*ControlPlane, error) {
 	sessions := utls.NewLRUClientSessionCache(64)
 	dialer := &net.Dialer{Timeout: 20 * time.Second, KeepAlive: 30 * time.Second}
 	tr := &http.Transport{
-		Proxy:       sysproxy.ProxyFunc,
 		DialContext: dialer.DialContext,
 		DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 			host, _, err := net.SplitHostPort(address)
@@ -111,20 +131,23 @@ func NewControlPlane(apiProxy string) (*ControlPlane, error) {
 		MaxIdleConnsPerHost:   4,
 		ForceAttemptHTTP2:     false,
 	}
+	var proxyURL *url.URL
 	if apiProxy != "" {
 		u, err := url.Parse(apiProxy)
 		if err != nil || u.Host == "" {
 			return nil, fmt.Errorf("invalid --api-proxy %q", apiProxy)
 		}
 		tr.Proxy = http.ProxyURL(u)
+		proxyURL = u
 	}
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("create HTTP cookie jar: %w", err)
 	}
 	cp := &ControlPlane{
-		jar:     jar,
-		captcha: NewCaptchaBroker(),
+		apiProxy: proxyURL,
+		jar:      jar,
+		captcha:  NewCaptchaBroker(),
 	}
 	cp.client = &http.Client{
 		Transport: tr,

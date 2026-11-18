@@ -90,7 +90,19 @@ func TestEngineChanged(t *testing.T) {
 
 func TestFromMapDropsInvalid(t *testing.T) {
 	s := FromMap(map[string]any{"log_level": "debug", "tun_mtu": "999999", "bogus": true})
-	if s.LogLevel != "debug" || s.TunMTU != 0 {
+	if s.LogLevel != "debug" || s.TunMTU != 1280 {
 		t.Errorf("unexpected result %+v", s)
+	}
+}
+
+func TestMTUDefaultsAndRejectsLegacyZero(t *testing.T) {
+	if got := DefaultSettings().TunMTU; got != 1280 {
+		t.Fatalf("default MTU = %d, want 1280", got)
+	}
+	if got := FromMap(map[string]any{"tun_mtu": float64(0)}).TunMTU; got != 1280 {
+		t.Fatalf("legacy zero MTU should migrate to 1280, got %d", got)
+	}
+	if _, err := Sanitize(map[string]any{"tun_mtu": 0}, DefaultSettings()); err == nil {
+		t.Fatal("zero MTU should be rejected")
 	}
 }

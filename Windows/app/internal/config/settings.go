@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"reflect"
@@ -11,13 +12,17 @@ import (
 )
 
 // Settings is the flat set of options shown in the panel as General / Routing / DNS / Inbound.
-// The JSON keys are the ones the panel (web/app.js) already uses.
+// The JSON keys are the ones the panel (ui/screens/settings.js and ui/screens/accounts.js) already uses.
 type Settings struct {
 	// general
 	AutoConnect bool   `json:"auto_connect"`
 	Autostart   bool   `json:"autostart"`
 	LogLevel    string `json:"log_level"`
+	// rotation (W-32): when an account reaches this used-percent it is set aside
+	RotationPct  int    `json:"rotation_pct"`
+	SignInMethod string `json:"sign_in_method"`
 	// routing (TUN)
+	RoutingRegion string   `json:"routing_region"`
 	BypassLAN     bool     `json:"bypass_lan"`
 	IPv6          bool     `json:"ipv6"`
 	UDPPolicy     string   `json:"udp_policy"`
@@ -40,6 +45,9 @@ type Settings struct {
 func DefaultSettings() Settings {
 	return Settings{
 		LogLevel:      "info",
+		RotationPct:   95,
+		SignInMethod:  "direct",
+		RoutingRegion: "none",
 		BypassLAN:     true,
 		IPv6:          true,
 		UDPPolicy:     "block",
@@ -52,17 +60,19 @@ func DefaultSettings() Settings {
 		DNSStrategy:   "prefer_ipv4",
 		DirectDNS:     "1.1.1.1",
 		TunStack:      "auto",
-		TunMTU:        0,
+		TunMTU:        1280,
 		StrictRoute:   true,
 	}
 }
 
 var choices = map[string][]string{
-	"log_level":    {"trace", "debug", "info", "warn", "error"},
-	"udp_policy":   {"block", "direct"},
-	"dns_type":     {"https", "tls", "tcp"},
-	"dns_strategy": {"prefer_ipv4", "ipv4_only", "prefer_ipv6", "ipv6_only"},
-	"tun_stack":    {"auto", "mixed", "system", "gvisor"},
+	"log_level":      {"trace", "debug", "info", "warn", "error"},
+	"udp_policy":     {"block", "direct"},
+	"dns_type":       {"https", "tls", "tcp"},
+	"dns_strategy":   {"prefer_ipv4", "ipv4_only", "prefer_ipv6", "ipv6_only"},
+	"tun_stack":      {"auto", "mixed", "system", "gvisor"},
+	"routing_region": {"none", "ir", "cn", "ru", "af", "tr", "id", "br"},
+	"sign_in_method": {"direct", "browser"},
 }
 
 const listLimit = 100
@@ -178,6 +188,26 @@ func cleanIP(value any, labelFA, labelEN string) (string, error) {
 	return a.String(), nil
 }
 
+func numberOf(value any) (float64, bool) {
+	switch v := value.(type) {
+	case json.Number:
+		n, err := v.Float64()
+		return n, err == nil
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case string:
+		n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return n, err == nil
+	}
+	return 0, false
+}
+
 func setBool(dst *bool, value any) error {
 	b, ok := value.(bool) // strict: 0/1 or "true" are not booleans
 	if !ok {
@@ -222,6 +252,23 @@ func (s *Settings) set(key string, value any) error {
 		return setBool(&s.AutoConnect, value)
 	case "autostart":
 		return setBool(&s.Autostart, value)
+	case "routing_region":
+		region := strings.ToLower(strings.TrimSpace(fmt.Sprint(value)))
+		if !contains(choices["routing_region"], region) {
+			return serr("منطقه نامعتبر است.", "Unknown routing region.")
+		}
+		s.RoutingRegion = region
+		return nil
+	case "sign_in_method":
+		return setChoice(&s.SignInMethod, "sign_in_method", value)
+	case "rotation_pct":
+		n, ok := numberOf(value)
+		if !ok || n < 50 || n > 100 {
+			return serr("آستانهٔ تعویض حساب باید عددی بین ۵۰ تا ۱۰۰ باشد.",
+				"The rotation threshold must be a number between 50 and 100.")
+		}
+		s.RotationPct = int(n)
+		return nil
 	case "bypass_lan":
 		return setBool(&s.BypassLAN, value)
 	case "ipv6":
@@ -278,7 +325,7 @@ func (s *Settings) set(key string, value any) error {
 		return nil
 	case "tun_mtu":
 		text := strings.TrimSpace(fmt.Sprint(value))
-		mtu := 0
+		mtu := DefaultSettings().TunMTU
 		if text != "" {
 			n, err := strconv.Atoi(text)
 			if err != nil {
@@ -286,9 +333,9 @@ func (s *Settings) set(key string, value any) error {
 			}
 			mtu = n
 		}
-		if mtu != 0 && (mtu < 1280 || mtu > 9000) {
-			return serr("MTU باید 0 (خودکار) یا بین 1280 تا 9000 باشد.",
-				"MTU must be 0 (automatic) or between 1280 and 9000.")
+		if mtu < 1280 || mtu > 9000 {
+			return serr("MTU باید عددی بین 1280 تا 9000 باشد.",
+				"MTU must be between 1280 and 9000.")
 		}
 		s.TunMTU = mtu
 		return nil
@@ -326,8 +373,10 @@ func FromMap(saved map[string]any) Settings {
 }
 
 // nonEngine lists the settings that only change what the panel does, not the sing-box config.
+// RotationPct / SignInMethod do not reach sing-box; RoutingRegion does.
 func (s Settings) engineView() Settings {
 	s.AutoConnect, s.Autostart = false, false
+	s.RotationPct, s.SignInMethod = 0, ""
 	return s
 }
 

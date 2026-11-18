@@ -12,22 +12,25 @@ import com.vauth.rxfoxyvpn.data.LanguageManager
 import com.vauth.rxfoxyvpn.data.ProxyStateStore
 import com.vauth.rxfoxyvpn.data.ServerListClient
 import com.vauth.rxfoxyvpn.data.SettingsStore
+import com.vauth.rxfoxyvpn.data.MultiAccountStore
 import com.vauth.rxfoxyvpn.data.TokenStore
+import com.vauth.rxfoxyvpn.data.backup.BackupManager
 import com.vauth.rxfoxyvpn.data.manifest.ManifestRuntime
 import com.vauth.rxfoxyvpn.data.relay.RelayConfigSource
 import com.vauth.rxfoxyvpn.data.relay.RelayRuntime
-import com.vauth.rxfoxyvpn.vpn.upstream.NettyLoggingBridge
 import org.conscrypt.Conscrypt
 import java.security.Security
 
 class RxFoxyVpnApp : Application() {
 
     lateinit var tokenStore: TokenStore
+    lateinit var multiAccountStore: MultiAccountStore
     lateinit var proxyStateStore: ProxyStateStore
     lateinit var settingsStore: SettingsStore
     lateinit var guardianClient: GuardianClient
     lateinit var serverListClient: ServerListClient
     lateinit var authRepository: FxaAuthRepository
+    lateinit var backupManager: BackupManager
 
     override fun onCreate() {
         super.onCreate()
@@ -36,9 +39,9 @@ class RxFoxyVpnApp : Application() {
         CrashReporter.install(this)
         CrashReporter.replayLastCrashIfAny(this)
 
-        NettyLoggingBridge.install()
         installConscrypt()
         tokenStore = TokenStore(this)
+        multiAccountStore = MultiAccountStore(this, tokenStore)
         proxyStateStore = ProxyStateStore(this)
         settingsStore = SettingsStore(this)
         ManifestRuntime.install(this, settingsStore)
@@ -46,6 +49,7 @@ class RxFoxyVpnApp : Application() {
         guardianClient = GuardianClient()
         serverListClient = ServerListClient()
         authRepository = FxaAuthRepository(tokenStore)
+        backupManager = BackupManager(multiAccountStore)
         createNotificationChannel()
     }
 
@@ -64,7 +68,8 @@ class RxFoxyVpnApp : Application() {
             "VPN status",
             NotificationManager.IMPORTANCE_LOW,
         )
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            ?: Log.w("RxFoxyVpnApp", "NotificationManager unavailable; status notifications disabled")
     }
 
     companion object {

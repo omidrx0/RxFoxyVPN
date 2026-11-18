@@ -6,8 +6,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	webview2 "github.com/jchv/go-webview2"
 	"golang.org/x/sys/windows"
@@ -58,6 +63,7 @@ func Run(a *app.App, pageURL string, opts Options) error {
 	hwnd := uintptr(view.Window())
 	s := &shell{app: a, view: view}
 	s.win = newWindowCtl(hwnd, func(js string) { view.Dispatch(func() { view.Eval(js) }) })
+	s.bindBackupExport()
 
 	// size and place the window in logical pixels, then set the minimum size
 	scale := s.win.dpiScale()
@@ -70,6 +76,12 @@ func Run(a *app.App, pageURL string, opts Options) error {
 		s.win.makeFrameless()
 		s.bindTitleBar()
 	}
+	titlebarInset := 0
+	if !opts.NativeFrame {
+		titlebarInset = 40
+	}
+	setFxaBrowserParent(hwnd, titlebarInset)
+	defer setFxaBrowserParent(0, 0)
 	s.setWindowIcons()
 	s.interceptClose(hwnd)
 	s.startTray()
@@ -84,7 +96,7 @@ func Run(a *app.App, pageURL string, opts Options) error {
 	return nil
 }
 
-// bindTitleBar exposes the window actions the page's custom title bar calls (web/app.js).
+// bindTitleBar exposes the window actions the page's custom title bar calls (ui/app.js).
 func (s *shell) bindTitleBar() {
 	bind := func(name string, f any) {
 		if err := s.view.Bind(name, f); err != nil {
@@ -98,6 +110,175 @@ func (s *shell) bindTitleBar() {
 	bind("rxwin_begin_resize", func(edge string) bool { return s.win.beginResize(edge) })
 }
 
+func (s *shell) bindBackupExport() {
+	if err := s.view.Bind("rxbackup_save", func(title, filter string) map[string]any {
+		return s.exportBackup(title, filter)
+	}); err != nil {
+		slog.Error("could not bind the backup export function", "err", err)
+	}
+}
+
+func (s *shell) exportBackup(title, filter string) map[string]any {
+	if s == nil || s.app == nil {
+		return map[string]any{"ok": false, "canceled": false, "error": "app unavailable"}
+	}
+	defaultName := "rxfoxyvpn-backup-" + time.Now().Format("2006-01-02_15-04-05") + ".zip"
+	out, canceled, err := promptSavePath(s.win.hwnd, title, filter, defaultName)
+	if canceled {
+		return map[string]any{"ok": false, "canceled": true}
+	}
+	if err != nil {
+		return map[string]any{"ok": false, "canceled": false, "error": err.Error()}
+	}
+	data, _, err := s.app.BackupExport()
+	if err != nil {
+		return map[string]any{"ok": false, "canceled": false, "error": err.Error()}
+	}
+	if err := writeAtomicFile(out, data); err != nil {
+		return map[string]any{"ok": false, "canceled": false, "error": err.Error()}
+	}
+	return map[string]any{"ok": true, "path": out, "canceled": false}
+}
+
+func writeAtomicFile(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	tmp, err := os.CreateTemp(dir, ".rxbackup-*.zip")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	from, err := windows.UTF16FromString(tmpPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	to, err := windows.UTF16FromString(path)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := windows.MoveFileEx(&from[0], &to[0], windows.MOVEFILE_REPLACE_EXISTING|windows.MOVEFILE_WRITE_THROUGH); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return nil
+}
+
+var (
+	comdlg32                 = windows.NewLazySystemDLL("comdlg32.dll")
+	procGetSaveFileNameW     = comdlg32.NewProc("GetSaveFileNameW")
+	procCommDlgExtendedError = comdlg32.NewProc("CommDlgExtendedError")
+)
+
+type openFileNameW struct {
+	lStructSize       uint32
+	hwndOwner         uintptr
+	hInstance         uintptr
+	lpstrFilter       *uint16
+	lpstrCustomFilter *uint16
+	nMaxCustFilter    uint32
+	nFilterIndex      uint32
+	lpstrFile         *uint16
+	nMaxFile          uint32
+	lpstrFileTitle    *uint16
+	nMaxFileTitle     uint32
+	lpstrInitialDir   *uint16
+	lpstrTitle        *uint16
+	Flags             uint32
+	nFileOffset       uint16
+	nFileExtension    uint16
+	lpstrDefExt       *uint16
+	lCustData         uintptr
+	lpfnHook          uintptr
+	lpTemplateName    *uint16
+	pvReserved        uintptr
+	dwReserved        uint32
+	FlagsEx           uint32
+}
+
+func multiStringUTF16(parts ...string) ([]uint16, error) {
+	result := make([]uint16, 0)
+	for _, part := range parts {
+		encoded, err := windows.UTF16FromString(part)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, encoded...)
+	}
+	return append(result, 0), nil
+}
+
+func promptSavePath(owner uintptr, title, filter, defaultName string) (string, bool, error) {
+	if title == "" {
+		title = "Save backup"
+	}
+	if filter == "" {
+		filter = "RXFOXYVPN backup"
+	}
+	filterSpec, err := multiStringUTF16(filter+" (*.zip)", "*.zip", "All files (*.*)", "*.*")
+	if err != nil {
+		return "", false, fmt.Errorf("invalid backup file filter: %w", err)
+	}
+	titleUTF16, err := windows.UTF16FromString(title)
+	if err != nil {
+		return "", false, fmt.Errorf("invalid save dialog title: %w", err)
+	}
+	defaultUTF16, err := windows.UTF16FromString(defaultName)
+	if err != nil {
+		return "", false, fmt.Errorf("invalid default backup name: %w", err)
+	}
+	extensionUTF16, err := windows.UTF16FromString("zip")
+	if err != nil {
+		return "", false, err
+	}
+	buf := make([]uint16, 32768)
+	copy(buf, defaultUTF16)
+	ofn := openFileNameW{
+		lStructSize:     uint32(unsafe.Sizeof(openFileNameW{})),
+		hwndOwner:       owner,
+		hInstance:       0,
+		lpstrFilter:     &filterSpec[0],
+		lpstrFile:       &buf[0],
+		nMaxFile:        uint32(len(buf)),
+		lpstrTitle:      &titleUTF16[0],
+		Flags:           0x00000002 | 0x00000008 | 0x00000800 | 0x00080000,
+		lpstrDefExt:     &extensionUTF16[0],
+		lpstrInitialDir: nil,
+	}
+	ret, _, _ := procGetSaveFileNameW.Call(uintptr(unsafe.Pointer(&ofn)))
+	runtime.KeepAlive(filterSpec)
+	runtime.KeepAlive(titleUTF16)
+	runtime.KeepAlive(defaultUTF16)
+	runtime.KeepAlive(extensionUTF16)
+	runtime.KeepAlive(buf)
+	runtime.KeepAlive(&ofn)
+	if ret == 0 {
+		if code, _, _ := procCommDlgExtendedError.Call(); code != 0 {
+			return "", false, fmt.Errorf("save dialog failed (Windows error 0x%X)", code)
+		}
+		return "", true, nil
+	}
+	path := windows.UTF16ToString(buf)
+	if strings.TrimSpace(path) == "" {
+		return "", false, fmt.Errorf("save dialog returned an empty path")
+	}
+	return filepath.Clean(path), false, nil
+}
+
 func (s *shell) setWindowIcons() {
 	small := loadIconBytes("rxvpn_app.ico", packaging.IconICO, 16, 16)
 	big := loadIconBytes("rxvpn_app.ico", packaging.IconICO, 32, 32)
@@ -109,8 +290,7 @@ func (s *shell) setWindowIcons() {
 	}
 }
 
-// interceptClose makes Alt+F4 / the taskbar's Close behave like the X button: with a tray icon
-// the window only hides and the app keeps running.
+// interceptClose hides the window to the tray when available; without a tray it lets Windows close it.
 func (s *shell) interceptClose(hwnd uintptr) {
 	var oldProc uintptr
 	proc := windows.NewCallback(func(h, m, wp, lp uintptr) uintptr {
@@ -123,14 +303,14 @@ func (s *shell) interceptClose(hwnd uintptr) {
 	oldProc = setWindowLongPtr(hwnd, gwlWndProc, proc)
 }
 
-// onClosing decides what a close request means: true = really close, false = it was hidden.
+// onClosing hides the panel when the tray is available, otherwise allows a full close.
 func (s *shell) onClosing() bool {
-	if s.quit.Load() || !s.trayOK.Load() { // no tray icon -> closing really quits (never a hidden zombie)
-		return true
+	if s.trayOK.Load() && s.win != nil {
+		s.win.hide()
+		return false
 	}
-	s.win.hide()
-	s.notify(tt("running"))
-	return false
+	s.quit.Store(true)
+	return true
 }
 
 // closeWindow is the title bar's X button.

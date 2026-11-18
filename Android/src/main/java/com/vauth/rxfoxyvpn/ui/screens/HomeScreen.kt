@@ -46,13 +46,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List as ListIcon
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -120,7 +115,6 @@ import com.vauth.rxfoxyvpn.data.model.SubscriptionQuotaState
 import androidx.compose.ui.text.style.TextAlign
 import com.vauth.rxfoxyvpn.vpn.PingUtil
 import com.vauth.rxfoxyvpn.vpn.RxFoxyVpnService
-import com.vauth.rxfoxyvpn.vpn.tun.HevSocks5Tunnel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -128,6 +122,7 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.sin
+import com.vauth.rxfoxyvpn.ui.icons.FoxyIcons
 
 /* ------------------------------------------------------------------------------------------
    Design tokens — copied 1:1 from the Windows web UI (style.css :root)
@@ -313,6 +308,10 @@ private fun VersionBadge() {
     }
 }
 
+private object StatusPillSession {
+    var lastState: ConnectionState? = null
+}
+
 @Composable
 private fun StatusPill(state: ConnectionState) {
     val textTarget = when (state) {
@@ -326,9 +325,12 @@ private fun StatusPill(state: ConnectionState) {
         else -> Rx.Line
     }
     val bgTarget = if (state == ConnectionState.CONNECTED) Rx.Good.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.03f)
-    val textColor by animateColorAsState(textTarget, tween(500), label = "pill-text")
-    val borderColor by animateColorAsState(borderTarget, tween(500), label = "pill-border")
-    val bgColor by animateColorAsState(bgTarget, tween(500), label = "pill-bg")
+    // Avoid replaying the status-pill color fade every time Home is recomposed.
+    val pillSpec = if (StatusPillSession.lastState == state) androidx.compose.animation.core.snap<Color>() else tween(500)
+    val textColor by animateColorAsState(textTarget, pillSpec, label = "pill-text")
+    val borderColor by animateColorAsState(borderTarget, pillSpec, label = "pill-border")
+    val bgColor by animateColorAsState(bgTarget, pillSpec, label = "pill-bg")
+    androidx.compose.runtime.SideEffect { StatusPillSession.lastState = state }
 
     val inf = rememberInfiniteTransition(label = "pill")
     val blink by inf.animateFloat(
@@ -383,7 +385,7 @@ private fun StatusPill(state: ConnectionState) {
 }
 
 @Composable
-private fun TopBar(state: ConnectionState, onOpenSettings: () -> Unit) {
+private fun TopBar(onOpenSettings: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -410,22 +412,31 @@ private fun TopBar(state: ConnectionState, onOpenSettings: () -> Unit) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            StatusPill(state)
-            Surface(
-                onClick = onOpenSettings,
-                shape = RoundedCornerShape(10.dp),
-                color = Rx.Panel,
-                border = BorderStroke(1.dp, Rx.Line),
-            ) {
-                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.Settings,
-                        contentDescription = LanguageManager.t("settings", "تنظیمات"),
-                        tint = Rx.Cyan,
-                        modifier = Modifier.size(15.dp),
+        // Status is shown under the connect orb; keep the top bar minimal (settings only).
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Soft circular glass gear — cleaner hit target, matches top-bar chrome
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                Color(0xFF1A1E48).copy(alpha = 0.92f),
+                                Color(0xFF12153A).copy(alpha = 0.88f),
+                            )
+                        )
                     )
-                }
+                    .border(1.dp, Rx.Line2.copy(alpha = 0.55f), CircleShape)
+                    .clickable(onClick = onOpenSettings),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Settings,
+                    contentDescription = LanguageManager.t("settings", "تنظیمات"),
+                    tint = Color(0xFFC8CFFF),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
@@ -516,6 +527,16 @@ private fun TotalBox(title: String, value: String, icon: ImageVector, tint: Colo
     }
 }
 
+/**
+ * Survives Home ↔ Settings. Without this, Home recomposes with Unknown and the bar
+ * refills from 0 every time the user comes back.
+ */
+private object QuotaSession {
+    // Animation baseline only — never a source of truth for displayed quota.
+    var checkDone: Boolean = false
+    var lastFraction: Float = 0f
+}
+
 @Composable
 private fun QuotaCard(
     quotaState: SubscriptionQuotaState,
@@ -523,14 +544,39 @@ private fun QuotaCard(
     loading: Boolean,
     onRefresh: () -> Unit,
 ) {
-    val target = when (quotaState) {
+    val measuredTarget = when (quotaState) {
         is SubscriptionQuotaState.Unlimited -> 1f
         is SubscriptionQuotaState.Limited ->
             (quotaState.remainingBytes.toFloat() / quotaState.limitBytes.toFloat()).coerceIn(0f, 1f)
         is SubscriptionQuotaState.Error,
-        is SubscriptionQuotaState.Unknown -> 0f
+        is SubscriptionQuotaState.Unknown -> null // unknown: keep previous bar width
     }
-    val fraction by animateFloatAsState(target, tween(700), label = "quota-fill")
+    // While quota is still Unknown after navigation, keep showing the last known fill.
+    val target = measuredTarget ?: QuotaSession.lastFraction
+    val fractionAnim = remember {
+        androidx.compose.animation.core.Animatable(QuotaSession.lastFraction)
+    }
+    LaunchedEffect(quotaState, target) {
+        when {
+            // No real measurement yet — hold last visual, do not animate to 0.
+            measuredTarget == null -> {
+                if (kotlin.math.abs(fractionAnim.value - QuotaSession.lastFraction) > 0.001f) {
+                    fractionAnim.snapTo(QuotaSession.lastFraction)
+                }
+            }
+            // Same value as last time (typical Settings → Home): snap, no refill animation.
+            kotlin.math.abs(target - QuotaSession.lastFraction) < 0.001f -> {
+                fractionAnim.snapTo(target)
+                QuotaSession.lastFraction = target
+            }
+            // Genuine quota change while staying on Home: animate smoothly.
+            else -> {
+                fractionAnim.animateTo(target, tween(700))
+                QuotaSession.lastFraction = fractionAnim.value
+            }
+        }
+    }
+    val fraction = fractionAnim.value
     val isError = quotaState is SubscriptionQuotaState.Error
     val isUnlimited = quotaState is SubscriptionQuotaState.Unlimited
 
@@ -545,7 +591,7 @@ private fun QuotaCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Layers, contentDescription = null, tint = Rx.Cyan, modifier = Modifier.size(17.dp))
+                    Icon(FoxyIcons.Layers, contentDescription = null, tint = Rx.Cyan, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
                         LanguageManager.t("quota_title", "سهمیه ماهانه Firefox"),
@@ -708,7 +754,7 @@ private fun UserAnnouncementDialog(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                Icons.Default.Campaign,
+                                FoxyIcons.Campaign,
                                 contentDescription = null,
                                 tint = Rx.Cyan,
                                 modifier = Modifier.size(20.dp),
@@ -911,6 +957,7 @@ fun HomeScreen(
     onDisconnect: () -> Unit,
     onOpenServers: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenAccounts: () -> Unit,
 ) {
     val context = LocalContext.current
     val state by RxFoxyVpnService.state.collectAsState()
@@ -947,15 +994,36 @@ fun HomeScreen(
     // Stats and timer
     // Initialised from the running session so coming back to this screen doesn't flash zeros.
     val alreadyConnected = state == ConnectionState.CONNECTED
-    var txBytes by remember { mutableLongStateOf(if (alreadyConnected) HevSocks5Tunnel.stats()[1] else 0L) }
-    var rxBytes by remember { mutableLongStateOf(if (alreadyConnected) HevSocks5Tunnel.stats()[3] else 0L) }
+    var txBytes by remember { mutableLongStateOf(if (alreadyConnected) RxFoxyVpnService.trafficTotals()[1] else 0L) }
+    var rxBytes by remember { mutableLongStateOf(if (alreadyConnected) RxFoxyVpnService.trafficTotals()[3] else 0L) }
     var txRate by remember { mutableLongStateOf(if (alreadyConnected) ConnectionSession.txRate else 0L) }
     var rxRate by remember { mutableLongStateOf(if (alreadyConnected) ConnectionSession.rxRate else 0L) }
     var connectedSeconds by remember { mutableLongStateOf(if (alreadyConnected) ConnectionSession.elapsedSeconds() else 0L) }
 
-    // Quota from the Guardian API: explicitly distinguishes Unlimited, Limited, Error, and Unknown.
-    var quotaState by remember { mutableStateOf<SubscriptionQuotaState>(SubscriptionQuotaState.Unknown) }
-    var initialQuotaCheckDone by remember { mutableStateOf(false) }
+    // Quota comes from the shared account store (single source of truth), refreshed from Guardian on demand.
+    val accounts by app.multiAccountStore.accounts.collectAsState()
+    val quotaActiveId by app.multiAccountStore.activeId.collectAsState()
+    val activeAccount = remember(accounts, quotaActiveId) { accounts.firstOrNull { it.id == quotaActiveId } }
+    var quotaFetchFailed by remember { mutableStateOf(false) }
+    val quotaState: SubscriptionQuotaState = remember(activeAccount, quotaFetchFailed) {
+        val account = activeAccount
+        when {
+            account == null -> SubscriptionQuotaState.Unknown
+            quotaFetchFailed -> SubscriptionQuotaState.Error(
+                LanguageManager.t("quota_fetch_error", "Could not fetch subscription info"),
+            )
+            account.unlimited -> SubscriptionQuotaState.Unlimited
+            account.limitBytes > 0 -> SubscriptionQuotaState.Limited(
+                limitBytes = account.limitBytes,
+                remainingBytes = account.remainingBytes,
+                resetRaw = if (account.resetAtEpochSeconds > 0) {
+                    java.time.Instant.ofEpochSecond(account.resetAtEpochSeconds).toString()
+                } else null,
+            )
+            else -> SubscriptionQuotaState.Unknown
+        }
+    }
+    var initialQuotaCheckDone by remember { mutableStateOf(QuotaSession.checkDone) }
     var isQuotaLoading by remember { mutableStateOf(false) }
 
     // Remote Manifest announcements (checked non-blockingly on entering HomeScreen)
@@ -984,26 +1052,41 @@ fun HomeScreen(
         if (isQuotaLoading) return
         isQuotaLoading = true
         scope.launch(Dispatchers.IO) {
-            val resolvedState: SubscriptionQuotaState = try {
-                val token = app.authRepository.currentAccessToken()
-                if (token.isNullOrBlank()) {
-                    SubscriptionQuotaState.Error(
-                        LanguageManager.t("quota_fetch_error", "خطا در دریافت اطلاعات اشتراک")
-                    )
-                } else {
-                    val info = app.guardianClient.fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, token)
-                    info.quotaState
-                }
-            } catch (e: Exception) {
-                SubscriptionQuotaState.Error(
-                    e.message?.takeIf { it.isNotBlank() }
-                        ?: LanguageManager.t("quota_fetch_error", "خطا در دریافت اطلاعات اشتراک")
-                )
+            var failed = false
+            val token = runCatching { app.authRepository.currentAccessToken() }.getOrNull()
+            val activeIdSnapshot = app.multiAccountStore.activeId.value
+            if (token.isNullOrBlank()) {
+                failed = true
+            } else {
+                runCatching { app.guardianClient.fetchUserInfo(GUARDIAN_ENDPOINT_DEFAULT, token) }
+                    .onSuccess { info ->
+                        if (activeIdSnapshot != null) {
+                            app.multiAccountStore.observeEntitlement(activeIdSnapshot, info)
+                        }
+                    }
+                    .onFailure { error ->
+                        failed = true
+                        com.vauth.rxfoxyvpn.data.error.FoxyLogger.logWarn(
+                            com.vauth.rxfoxyvpn.data.error.ErrorClassifier.classify(
+                                error,
+                                com.vauth.rxfoxyvpn.data.error.ErrorSection.ACCOUNTS,
+                                "home_quota_refresh",
+                            ),
+                        )
+                    }
             }
             withContext(Dispatchers.Main) {
-                quotaState = resolvedState
+                quotaFetchFailed = failed
                 initialQuotaCheckDone = true
                 isQuotaLoading = false
+                QuotaSession.checkDone = true
+                val account = app.multiAccountStore.activeAccount()
+                QuotaSession.lastFraction = when {
+                    account == null -> QuotaSession.lastFraction
+                    account.unlimited -> 1f
+                    account.limitBytes > 0 -> account.remainingBytes.toFloat() / account.limitBytes.toFloat()
+                    else -> QuotaSession.lastFraction
+                }
             }
         }
     }
@@ -1012,7 +1095,21 @@ fun HomeScreen(
         val proxy = selectedProxy ?: return
         isPingingServer = true
         scope.launch(Dispatchers.IO) {
-            val latency = PingUtil.measureTcpLatencyMs(proxy.host, proxy.port)
+            // When the tunnel is up, measure real path latency via gstatic generate_204
+            // through the local SOCKS. Otherwise fall back to TCP edge RTT.
+            val socksPort = app.settingsStore.socksPort
+            val probeUrl = app.settingsStore.latencyProbeUrl
+            val connected = RxFoxyVpnService.state.value == ConnectionState.CONNECTED
+            val latency = if (connected) {
+                PingUtil.measurePreferredMs(
+                    host = proxy.host,
+                    port = proxy.port,
+                    tunnelSocksPort = socksPort,
+                    probeUrl = probeUrl,
+                )
+            } else {
+                PingUtil.measureTcpLatencyMs(proxy.host, proxy.port)
+            }
             withContext(Dispatchers.Main) {
                 serverPingMs = latency
                 pingTested = true
@@ -1028,6 +1125,12 @@ fun HomeScreen(
         }
     }
 
+    // Account added/removed while Home is underneath: refresh against the new active account.
+    LaunchedEffect(quotaActiveId) {
+        quotaFetchFailed = false
+        if (quotaActiveId != null) fetchRealQuota()
+    }
+
     LaunchedEffect(selectedProxy) {
         serverPingMs = null
         pingTested = false
@@ -1036,7 +1139,8 @@ fun HomeScreen(
 
     LaunchedEffect(state) {
         if (state == ConnectionState.CONNECTED) {
-            var lastStats = HevSocks5Tunnel.stats()
+            measureServerPing()
+            var lastStats = RxFoxyVpnService.trafficTotals()
             var lastTime = System.currentTimeMillis()
 
             // Totals dropping below what we saw before means the tunnel was restarted -> new session.
@@ -1054,7 +1158,7 @@ fun HomeScreen(
 
             while (true) {
                 delay(1000L)
-                val stats = HevSocks5Tunnel.stats()
+                val stats = RxFoxyVpnService.trafficTotals()
                 val now = System.currentTimeMillis()
                 val elapsed = ((now - lastTime).coerceAtLeast(1)) / 1000.0
                 connectedSeconds = ConnectionSession.elapsedSeconds()
@@ -1114,7 +1218,7 @@ fun HomeScreen(
             RxBackground()
 
             Column(Modifier.fillMaxSize()) {
-                TopBar(state = state, onOpenSettings = onOpenSettings)
+                TopBar(onOpenSettings = onOpenSettings)
 
                 Column(
                     modifier = Modifier
@@ -1201,7 +1305,7 @@ fun HomeScreen(
                         val error = lastError
                         if (error != null && state != ConnectionState.CONNECTING) {
                             Spacer(Modifier.height(6.dp))
-                            Text(error, color = Rx.Bad, fontSize = 12.sp)
+                            Text(error.userMessage(), color = Rx.Bad, fontSize = 12.sp, maxLines = 2)
                         }
                         Spacer(Modifier.height(6.dp))
                     }
@@ -1211,19 +1315,19 @@ fun HomeScreen(
                         StatBox(
                             title = LanguageManager.t("s_up", "زمان اتصال"),
                             value = if (state == ConnectionState.CONNECTED) uptimeFormatted else "00:00:00",
-                            icon = Icons.Default.Schedule,
+                            icon = FoxyIcons.Schedule,
                             modifier = Modifier.weight(1f),
                         )
                         StatBox(
                             title = LanguageManager.t("upload_rate", "آپلود در لحظه"),
                             value = formatBytesPerSecond(txRate),
-                            icon = Icons.Default.CloudUpload,
+                            icon = FoxyIcons.CloudUpload,
                             modifier = Modifier.weight(1f),
                         )
                         StatBox(
                             title = LanguageManager.t("download_rate", "دانلود در لحظه"),
                             value = formatBytesPerSecond(rxRate),
-                            icon = Icons.Default.CloudDownload,
+                            icon = FoxyIcons.CloudDownload,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -1231,7 +1335,7 @@ fun HomeScreen(
                     // ---------- Traffic totals ----------
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Layers, contentDescription = null, tint = Rx.Cyan, modifier = Modifier.size(15.dp))
+                            Icon(FoxyIcons.Layers, contentDescription = null, tint = Rx.Cyan, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(7.dp))
                             Text(
                                 LanguageManager.t("traffic_total_title", "حجم مصرفی این اتصال"),
@@ -1242,27 +1346,80 @@ fun HomeScreen(
                             TotalBox(
                                 title = LanguageManager.t("uploaded_total", "مجموع آپلود"),
                                 value = formatBytes(txBytes),
-                                icon = Icons.Default.CloudUpload,
+                                icon = FoxyIcons.CloudUpload,
                                 tint = Color(0xFF65E2B5),
                                 modifier = Modifier.weight(1f),
                             )
                             TotalBox(
                                 title = LanguageManager.t("downloaded_total", "مجموع دانلود"),
                                 value = formatBytes(rxBytes),
-                                icon = Icons.Default.CloudDownload,
+                                icon = FoxyIcons.CloudDownload,
                                 tint = Rx.Cyan,
                                 modifier = Modifier.weight(1f),
                             )
                         }
                     }
 
+                    // ---------- No active account ----------
+                    if (activeAccount == null) {
+                        Surface(
+                            onClick = onOpenAccounts,
+                            shape = RoundedCornerShape(20.dp),
+                            color = Rx.Panel,
+                            border = BorderStroke(1.dp, Rx.Violet.copy(alpha = 0.45f)),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Rx.Violet.copy(alpha = 0.18f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        FoxyIcons.PersonAdd,
+                                        contentDescription = null,
+                                        tint = Rx.Violet,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        LanguageManager.t("home_no_account_title", "No active account"),
+                                        color = Rx.Text,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                    )
+                                    Text(
+                                        LanguageManager.t("home_no_account_hint", "Tap to add a Firefox account"),
+                                        color = Rx.Mute,
+                                        fontSize = 12.sp,
+                                    )
+                                }
+                                Icon(
+                                    FoxyIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = Rx.Mute,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                    }
+
                     // ---------- Monthly quota ----------
-                    QuotaCard(
-                        quotaState = quotaState,
-                        initialCheckCompleted = initialQuotaCheckDone,
-                        loading = isQuotaLoading,
-                        onRefresh = { fetchRealQuota() },
-                    )
+                    if (activeAccount != null) {
+                        QuotaCard(
+                            quotaState = quotaState,
+                            initialCheckCompleted = initialQuotaCheckDone,
+                            loading = isQuotaLoading,
+                            onRefresh = { fetchRealQuota() },
+                        )
+                    }
                 }
 
                 // ---------- Dock (stays at the bottom, outside the scroll area) ----------

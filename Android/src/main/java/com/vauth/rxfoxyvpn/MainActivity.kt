@@ -39,8 +39,10 @@ class MainActivity : ComponentActivity() {
 
             Toast.makeText(
                 this,
-                "RxFoxyVPN needs Android's VPN permission to tunnel this device's traffic. " +
-                    "Proxy-only mode in Settings works without it.",
+                LanguageManager.t(
+                    "vpn_permission_denied",
+                    "VPN permission denied. Allow the VPN permission to connect.",
+                ),
                 Toast.LENGTH_LONG,
             ).show()
         }

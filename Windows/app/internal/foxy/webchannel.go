@@ -16,6 +16,9 @@ const (
 	WebChannelTrustedOrigin = "https://accounts.firefox.com"
 	// WebChannelID is Firefox Desktop Sync's WebChannel ID expected by accounts.firefox.com.
 	WebChannelID = "account_updates"
+	// BrowserSignInUserAgent matches the Windows Firefox profile used by the
+	// working Arman sign-in WebView. The API client UserAgent is intentionally separate.
+	BrowserSignInUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0"
 
 	browserConfirmTimeout  = 5 * time.Minute
 	browserPollInterval    = 2 * time.Second
@@ -26,8 +29,27 @@ var browserSignInAllowedDomains = []string{
 	"firefox.com",
 	"mozilla.com",
 	"mozilla.org",
+	"mozilla.net",
 	"firefoxusercontent.com",
 	"fastly.net",
+}
+
+var browserSignInAllowedHosts = []string{
+	"accounts.google.com",
+	"accounts.youtube.com",
+	"apis.google.com",
+	"play.google.com",
+	"www.google.com",
+	"ssl.gstatic.com",
+	"www.gstatic.com",
+	"fonts.gstatic.com",
+	"fonts.googleapis.com",
+	"lh3.googleusercontent.com",
+	"appleid.apple.com",
+	"appleid.cdn-apple.com",
+	"idmsa.apple.com",
+	"iforgot.apple.com",
+	"www.apple.com",
 }
 
 // IsTrustedBridgeOrigin reports whether origin equals https://accounts.firefox.com (scheme+host+default port).
@@ -47,7 +69,7 @@ func IsTrustedBridgeOrigin(rawOrigin string) bool {
 }
 
 // IsBrowserSignInNavigationAllowed mirrors Android's BrowserSignInPolicy.isNavigationAllowed:
-// HTTPS on port 443, no userinfo, and host within Mozilla's sign-in / CDN domains (plus about:blank).
+// HTTPS on port 443, no userinfo, and host within the sign-in / CDN allowlist (plus about:blank).
 func IsBrowserSignInNavigationAllowed(rawURL string) bool {
 	trimmed := strings.TrimSpace(rawURL)
 	if strings.EqualFold(trimmed, "about:blank") {
@@ -60,6 +82,11 @@ func IsBrowserSignInNavigationAllowed(rawURL string) bool {
 	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
 	if host == "" {
 		return false
+	}
+	for _, h := range browserSignInAllowedHosts {
+		if host == h {
+			return true
+		}
 	}
 	for _, d := range browserSignInAllowedDomains {
 		if host == d || strings.HasSuffix(host, "."+d) {
@@ -94,18 +121,25 @@ func WebChannelLoginURL(email string) string {
 
 // WebChannelHookJS is injected at document creation in the isolated WebView2 sign-in window.
 // It activates strictly on https://accounts.firefox.com and forwards WebChannelMessageToChrome
-// events to the bound Go handler __rxFxaBridge(rawDetailString).
+// events from either window or document to the native WebView2 bridge.
 const WebChannelHookJS = `(function(){
   if (window.__rxFxaHooked) return;
   if (!window.location || window.location.origin !== 'https://accounts.firefox.com') return;
+  if (!window.chrome || !window.chrome.webview || typeof window.chrome.webview.postMessage !== 'function') return;
   window.__rxFxaHooked = true;
-  window.addEventListener('WebChannelMessageToChrome', function(e) {
+  var onChannel = function(e) {
     try {
+      if (!window.location || window.location.origin !== 'https://accounts.firefox.com') return;
       var d = e && e.detail;
-      if (d == null || typeof window.__rxFxaBridge !== 'function') return;
-      window.__rxFxaBridge(typeof d === 'string' ? d : JSON.stringify(d));
+      if (d == null) return;
+      window.chrome.webview.postMessage(JSON.stringify({
+        origin: window.location.origin,
+        detail: typeof d === 'string' ? d : JSON.stringify(d)
+      }));
     } catch (_) {}
-  }, true);
+  };
+  window.addEventListener('WebChannelMessageToChrome', onChannel, true);
+  document.addEventListener('WebChannelMessageToChrome', onChannel, true);
 })();`
 
 // WebChannelReplyJS builds the JavaScript snippet that dispatches a WebChannelMessageToContent
@@ -124,7 +158,7 @@ func WebChannelReplyJS(command, messageID string, data map[string]any) (string, 
 		return "", err
 	}
 	return fmt.Sprintf(
-		`(function(){if(window.location&&window.location.origin==='https://accounts.firefox.com'){window.dispatchEvent(new CustomEvent('WebChannelMessageToContent',{detail:%s}));}})();`,
+		`(function(){if(window.location&&window.location.origin==='https://accounts.firefox.com'){var d=%s;window.dispatchEvent(new CustomEvent('WebChannelMessageToContent',{detail:d}));document.dispatchEvent(new CustomEvent('WebChannelMessageToContent',{detail:d}));}})();`,
 		string(encoded),
 	), nil
 }
@@ -162,13 +196,7 @@ func HandleWebChannelMessage(raw string) (WebChannelResult, error) {
 	case "fxaccounts:fxa_status":
 		js, err := WebChannelReplyJS(msg.Command, msg.MessageID, map[string]any{
 			"signedInUser": nil,
-			"clientId":     firefoxClientID,
-			"capabilities": map[string]any{
-				"choose_what_to_sync": true,
-				"multiService":        false,
-				"pairing":             false,
-				"engines":             []string{},
-			},
+			"capabilities": map[string]any{},
 		})
 		return WebChannelResult{ReplyJS: js}, err
 
@@ -179,24 +207,15 @@ func HandleWebChannelMessage(raw string) (WebChannelResult, error) {
 	case "fxaccounts:login", "fxaccounts:oauth_login":
 		tok, _ := msg.Data["sessionToken"].(string)
 		email, _ := msg.Data["email"].(string)
-		var reply string
-		if msg.MessageID != "" {
-			reply, _ = WebChannelReplyJS(msg.Command, msg.MessageID, map[string]any{})
-		}
 		if IsValidSessionTokenHex(tok) {
 			return WebChannelResult{
-				ReplyJS:      reply,
 				SessionToken: strings.ToLower(tok),
 				Email:        NormalizeEmail(email),
 			}, nil
 		}
-		return WebChannelResult{ReplyJS: reply}, nil
+		return WebChannelResult{}, nil
 
 	default:
-		if msg.MessageID != "" {
-			js, err := WebChannelReplyJS(msg.Command, msg.MessageID, map[string]any{})
-			return WebChannelResult{ReplyJS: js}, err
-		}
 		return WebChannelResult{}, nil
 	}
 }

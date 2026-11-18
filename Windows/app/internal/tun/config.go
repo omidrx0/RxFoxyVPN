@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"rxvpn/internal/config"
+	"rxvpn/internal/routing"
 )
 
 var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
@@ -79,9 +80,7 @@ func MakeConfig(socksPort int, s config.Settings) map[string]any {
 	if s.TunStack != "auto" {
 		tunIn["stack"] = s.TunStack
 	}
-	if s.TunMTU != 0 {
-		tunIn["mtu"] = s.TunMTU
-	}
+	tunIn["mtu"] = s.TunMTU
 
 	remoteDNS := map[string]any{
 		"type":   s.DNSType,
@@ -102,9 +101,20 @@ func MakeConfig(socksPort int, s config.Settings) map[string]any {
 		"strategy": strategy,
 	}
 
-	apps, domains := s.DirectApps, s.DirectDomains
+	apps := s.DirectApps
 	udpDirect := s.UDPPolicy == "direct"
+
+	// W-20 · regional direct routing: national destinations bypass the tunnel.
+	// The region's domain suffixes merge with the user's own Direct domains: both get a
+	// domain_suffix → direct rule and both resolve via the direct DNS server.
+	region := routing.Normalize(s.RoutingRegion)
+	regionSuffixes := routing.DomainSuffixes(region)
+	regionCIDRs := routing.CIDRs(region)
+	domains := append(append([]string{}, s.DirectDomains...), regionSuffixes...)
+
 	rules := []any{map[string]any{"network": "udp", "port": 53, "action": "hijack-dns"}}
+	// never let DNS-over-TLS traffic leak outside the tunnel
+	rules = append(rules, map[string]any{"port": 853, "action": "reject", "method": "default"})
 	if len(domains) > 0 {
 		// TUN only sees IP addresses; sniffing recovers the domain name so domain rules can match
 		rules = append(rules, map[string]any{"action": "sniff"})
@@ -115,6 +125,9 @@ func MakeConfig(socksPort int, s config.Settings) map[string]any {
 	}
 	if len(domains) > 0 {
 		rules = append(rules, map[string]any{"domain_suffix": domains, "action": "route", "outbound": "direct"})
+	}
+	if len(regionCIDRs) > 0 {
+		rules = append(rules, map[string]any{"ip_cidr": regionCIDRs, "action": "route", "outbound": "direct"})
 	}
 	if udpDirect {
 		rules = append(rules, map[string]any{"network": "udp", "action": "route", "outbound": "direct"})
@@ -129,7 +142,7 @@ func MakeConfig(socksPort int, s config.Settings) map[string]any {
 		},
 		map[string]any{"type": "block", "tag": "block"},
 	}
-	needsDirect := len(apps) > 0 || len(domains) > 0 || udpDirect
+	needsDirect := len(apps) > 0 || len(domains) > 0 || len(regionCIDRs) > 0 || udpDirect
 	if needsDirect {
 		outbounds = append(outbounds, map[string]any{"type": "direct", "tag": "direct"})
 		// the direct outbound resolves domain names itself, so sing-box >= 1.12 requires a default

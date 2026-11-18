@@ -5,29 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-val hevSocks5TunnelVersion = "2.17.1"
-val hevSocks5TunnelDir = file("src/main/jni")
-
-val fetchHevSocks5Tunnel = tasks.register<Exec>("fetchHevSocks5Tunnel") {
-    val marker = File(hevSocks5TunnelDir, "Android.mk")
-    outputs.file(marker)
-    onlyIf { !marker.exists() }
-    doFirst { hevSocks5TunnelDir.mkdirs() }
-    commandLine(
-        "git", "clone",
-        "--branch", hevSocks5TunnelVersion,
-        "--depth", "1",
-        "--recursive",
-        "--shallow-submodules",
-        "https://github.com/heiher/hev-socks5-tunnel.git",
-        hevSocks5TunnelDir.absolutePath,
-    )
-}
-
-tasks.matching { it.name.startsWith("externalNativeBuild") || it.name.contains("NdkBuild") }
-    .configureEach { dependsOn(fetchHevSocks5Tunnel) }
-tasks.named("preBuild").configure { dependsOn(fetchHevSocks5Tunnel) }
-
 val releaseKeystoreFile = rootProject.file("foxyvpn-release.jks")
 
 val releaseKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
@@ -43,14 +20,12 @@ android {
     namespace = "com.vauth.rxfoxyvpn"
     compileSdk = 35
 
-    ndkVersion = "26.1.10909125"
-
     defaultConfig {
         applicationId = "com.vauth.rxfoxyvpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.5"
+        versionCode = 4
+        versionName = "2.0.0"
 
         buildConfigField(
             "String",
@@ -70,22 +45,6 @@ android {
             "SHARED_RELAY_SECRET",
             "\"${sharedRelaySecret.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
-
-        externalNativeBuild {
-            ndkBuild {
-                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-                arguments += listOf(
-                    "APP_PLATFORM=android-26",
-                    "APP_CFLAGS=-DPKGNAME=com/vauth/rxfoxyvpn/vpn/tun -DCLSNAME=HevSocks5Tunnel",
-                )
-            }
-        }
-    }
-
-    externalNativeBuild {
-        ndkBuild {
-            path = file("src/main/jni/Android.mk")
-        }
     }
 
     // One build -> a separate APK per CPU (ABI) + one universal APK that contains all of them.
@@ -159,15 +118,22 @@ android {
     }
 
     packaging {
+        jniLibs {
+            // libbox.so is loaded through System.loadLibrary by gomobile; keep it extractable and symbolized for crash reports.
+            useLegacyPackaging = true
+            keepDebugSymbols.add("**/libbox.so")
+        }
         resources.excludes.add("META-INF/INDEX.LIST")
         resources.excludes.add("META-INF/*.SF")
         resources.excludes.add("META-INF/*.DSA")
         resources.excludes.add("META-INF/*.RSA")
-        resources.pickFirsts.add("META-INF/io.netty.versions.properties")
     }
 }
 
 dependencies {
+    // Native core: sing-box libbox (gomobile AAR). Not on Maven; see MIGRATION.md for how it is built and pinned.
+    implementation(files("libs/libbox.aar"))
+
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -190,11 +156,6 @@ dependencies {
     // Browser Sign-in: origin-restricted WebMessageListener for Mozilla's WebChannel bridge.
     implementation("androidx.webkit:webkit:1.12.1")
 
-    implementation("io.netty:netty-handler:4.1.115.Final")
-    implementation("io.netty:netty-codec-http2:4.1.115.Final")
-    implementation("io.netty:netty-transport:4.1.115.Final")
-
-    implementation("io.netty:netty-handler-proxy:4.1.115.Final")
 
     implementation("org.conscrypt:conscrypt-android:2.7.0")
     implementation("com.caverock:androidsvg-aar:1.4")

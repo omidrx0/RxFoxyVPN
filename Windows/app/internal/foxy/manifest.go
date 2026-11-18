@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -192,16 +193,46 @@ func NewSharedRelayManager(opts TLSOptions, cfgSource RelayConfigSource) (*Share
 	}, nil
 }
 
+// allowedManifestHost matches the Android RelayPolicy guarantee for the manifest/announcements
+// path: an https URL on port 443 with no userinfo/fragment whose host is, or is a subdomain of,
+// github.com, githubusercontent.com or jsdelivr.net. Anything else is refused, so a tampered
+// disk override can never point the shared-secret-bearing control-plane at an attacker's host.
+func allowedManifestHost(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > maxRelayURLLen {
+		return false
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil || !isEffectiveHTTPS443(u) || u.User != nil || u.Fragment != "" {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+	for _, d := range []string{"github.com", "githubusercontent.com", "jsdelivr.net"} {
+		if host == d || strings.HasSuffix(host, "."+d) {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *SharedRelayManager) manifestURLs() []string {
 	primary := DefaultManifestPrimaryURL
 	fallback := DefaultManifestFallbackURL
 	if m.configSource != nil {
 		cfg := m.configSource()
 		if s := strings.TrimSpace(cfg.ManifestPrimaryOverride); s != "" {
-			primary = s
+			if allowedManifestHost(s) {
+				primary = s
+			} else {
+				slog.Warn("manifest primary override refused (not an allow-listed host)")
+			}
 		}
 		if s := strings.TrimSpace(cfg.ManifestFallbackOverride); s != "" {
-			fallback = s
+			if allowedManifestHost(s) {
+				fallback = s
+			} else {
+				slog.Warn("manifest fallback override refused (not an allow-listed host)")
+			}
 		}
 	}
 	if strings.EqualFold(primary, fallback) {

@@ -25,6 +25,8 @@ func UIPath() string              { return filepath.Join(DataDir(), "rxvpn_ui.js
 func ConnectionPath() string      { return filepath.Join(DataDir(), "connection.json") }
 func SettingsPath() string        { return filepath.Join(DataDir(), "rxvpn_settings.json") }
 func SavedAccountsPath() string   { return filepath.Join(DataDir(), "saved_accounts.json") }
+func PoolStatePath() string        { return filepath.Join(DataDir(), "accounts", "state.json") }
+func PoolOrderPath() string        { return filepath.Join(DataDir(), "accounts", "order.json") }
 func TunLogPath() string          { return filepath.Join(DataDir(), "tun.log") }
 func AppLogPath() string          { return filepath.Join(DataDir(), "rxvpn.log") }
 func ProxyBackupPath() string     { return filepath.Join(DataDir(), "system_proxy_backup.json") }

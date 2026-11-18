@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -49,7 +50,7 @@ type BrowserAuthStatus struct {
 // BrowserAuthStarter launches the native WebView2 helper process when mode == BrowserModeWebView2,
 // or opens the external system browser when mode == BrowserModeExternal.
 type BrowserAuthStarter struct {
-	LaunchWebViewHelper func(ipcURL, ipcSecret, email string) (stop func(), err error)
+	LaunchWebViewHelper func(ipcURL, ipcSecret, email, proxyAddress string) (stop func(), err error)
 	OpenExternalURL     func(authURL string) error
 }
 
@@ -68,6 +69,7 @@ type browserSession struct {
 	cancel   context.CancelFunc
 	server   *http.Server
 	stopProc func()
+	proxy    *browserSignInProxy
 
 	claimed atomic.Bool
 }
@@ -150,8 +152,7 @@ func BuildExternalOAuthURL(verifier, state, emailHint string) string {
 }
 
 // Start cancels any previous browser login session, starts a fresh loopback listener on 127.0.0.1:0,
-// and opens either the isolated native WebView2 window (falling back to external browser if unavailable)
-// or the external system browser directly.
+// and opens either the in-app WebView2 browser or the external system browser.
 func (c *BrowserAuthCoordinator) Start(preferredMode BrowserAuthMode, emailHint string) (BrowserAuthStatus, error) {
 	c.Cancel()
 
@@ -233,32 +234,44 @@ func (c *BrowserAuthCoordinator) Start(preferredMode BrowserAuthMode, emailHint 
 	}
 
 	ipcURL := fmt.Sprintf("http://127.0.0.1:%d/internal/webchannel/%s", port, ipcSecret)
-	if actualMode == BrowserModeWebView2 && c.starter.LaunchWebViewHelper != nil {
-		stopFn, launchErr := c.starter.LaunchWebViewHelper(ipcURL, ipcSecret, sess.emailHint)
-		if launchErr == nil {
-			sess.stopProc = stopFn
-		} else {
-			// Clean automatic fallback to external browser when WebView2 is unavailable.
-			actualMode = BrowserModeExternal
+	launchWebViewHelper := false
+	if actualMode == BrowserModeWebView2 {
+		if c.starter.LaunchWebViewHelper == nil {
+			cancel()
+			_ = srv.Close()
+			return BrowserAuthStatus{}, errors.New("in-app browser sign-in is unavailable")
+		}
+		if c.account == nil || c.account.cp == nil {
+			cancel()
+			_ = srv.Close()
+			return BrowserAuthStatus{}, errors.New("Firefox sign-in requires a control-plane client")
+		}
+		proxy, proxyErr := newBrowserSignInProxy(c.account.cp)
+		if proxyErr != nil {
+			cancel()
+			_ = srv.Close()
+			return BrowserAuthStatus{}, fmt.Errorf("starting the browser sign-in proxy: %w", proxyErr)
+		}
+		sess.proxy = proxy
+		launchWebViewHelper = true
+	} else if actualMode == BrowserModeExternal {
+		if c.starter.OpenExternalURL == nil {
+			cancel()
+			_ = srv.Close()
+			return BrowserAuthStatus{}, errors.New("external browser sign-in is unavailable")
 		}
 	} else {
-		actualMode = BrowserModeExternal
+		cancel()
+		_ = srv.Close()
+		return BrowserAuthStatus{}, fmt.Errorf("unsupported browser sign-in mode %q", actualMode)
 	}
 	sess.mode = actualMode
 
-	if actualMode == BrowserModeExternal && c.starter.OpenExternalURL != nil {
-		if openErr := c.starter.OpenExternalURL(authURL); openErr != nil {
-			cancel()
-			_ = srv.Close()
-			return BrowserAuthStatus{}, openErr
-		}
-	}
-
-	// Clear stale cookies before starting a fresh sign-in session.
+	// Publish before opening the browser: the helper can fail and report the error
+	// before its process-start call returns.
 	if c.account != nil && c.account.cp != nil {
 		c.account.cp.ClearCookies()
 	}
-
 	c.mu.Lock()
 	c.cur = sess
 	c.stage = BrowserStageAwaitingBrowser
@@ -267,10 +280,49 @@ func (c *BrowserAuthCoordinator) Start(preferredMode BrowserAuthMode, emailHint 
 	c.port = port
 	c.email = ""
 	c.lastErr = ""
-	st := c.statusLocked()
 	c.mu.Unlock()
 
-	return st, nil
+	if launchWebViewHelper {
+		stopFn, launchErr := c.starter.LaunchWebViewHelper(ipcURL, ipcSecret, sess.emailHint, sess.proxy.Addr())
+		if launchErr != nil {
+			c.failStartingSession(sess, launchErr)
+			return BrowserAuthStatus{}, fmt.Errorf("opening the in-app browser: %w", launchErr)
+		}
+		c.mu.Lock()
+		current := c.cur == sess
+		if current {
+			sess.stopProc = stopFn
+		}
+		c.mu.Unlock()
+		if !current && stopFn != nil {
+			stopFn()
+		}
+	}
+
+	if actualMode == BrowserModeExternal && c.starter.OpenExternalURL != nil {
+		if openErr := c.starter.OpenExternalURL(authURL); openErr != nil {
+			c.failStartingSession(sess, openErr)
+			return BrowserAuthStatus{}, openErr
+		}
+	}
+
+	return c.Status(), nil
+}
+
+func (c *BrowserAuthCoordinator) failStartingSession(sess *browserSession, err error) {
+	c.mu.Lock()
+	current := c.cur == sess
+	if current {
+		c.cur = nil
+		c.stage = BrowserStageFailed
+		c.authURL = ""
+		c.port = 0
+		c.lastErr = err.Error()
+	}
+	c.mu.Unlock()
+	if current {
+		c.teardownSession(sess)
+	}
 }
 
 // Status returns a thread-safe snapshot of the current or most recent Browser Sign-In state.
@@ -324,10 +376,20 @@ func (c *BrowserAuthCoordinator) teardownSession(sess *browserSession) {
 	if sess.stopProc != nil {
 		sess.stopProc()
 	}
+	closeBrowserSignInProxy(sess)
 	if sess.server != nil {
 		sctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = sess.server.Shutdown(sctx)
 		cancel()
+	}
+}
+
+func closeBrowserSignInProxy(sess *browserSession) {
+	if sess.proxy == nil {
+		return
+	}
+	if err := sess.proxy.Close(); err != nil {
+		slog.Warn("browser sign-in proxy cleanup failed", "err", err)
 	}
 }
 
@@ -365,7 +427,7 @@ func (c *BrowserAuthCoordinator) finishSession(sess *browserSession, email strin
 		c.stage = BrowserStageFailed
 		c.lastErr = err.Error()
 		c.mu.Unlock()
-		c.teardownSession(sess)
+		go c.teardownSession(sess)
 		return
 	}
 	c.stage = BrowserStageSucceeded

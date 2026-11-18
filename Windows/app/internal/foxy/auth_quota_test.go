@@ -218,7 +218,11 @@ func TestWebChannelAndBrowserPKCELoopbackSecurity(t *testing.T) {
 		t.Fatal("IsTrustedBridgeOrigin check failed")
 	}
 	if !IsBrowserSignInNavigationAllowed("https://accounts.firefox.com/?context=fx_desktop_v3") ||
+		!IsBrowserSignInNavigationAllowed("https://accounts.google.com/") ||
+		!IsBrowserSignInNavigationAllowed("https://appleid.apple.com/") ||
+		!IsBrowserSignInNavigationAllowed("https://assets.mozilla.net/") ||
 		IsBrowserSignInNavigationAllowed("https://attacker.example.com/phish") ||
+		IsBrowserSignInNavigationAllowed("https://login.accounts.google.com/") ||
 		IsBrowserSignInNavigationAllowed("javascript:alert(1)") {
 		t.Fatal("IsBrowserSignInNavigationAllowed check failed")
 	}
@@ -227,8 +231,20 @@ func TestWebChannelAndBrowserPKCELoopbackSecurity(t *testing.T) {
 	validTok := strings.Repeat("ef", 32)
 	msgJSON := fmt.Sprintf(`{"id":"account_updates","message":{"command":"fxaccounts:login","messageId":"m1","data":{"email":"Alice@Example.com","sessionToken":%q}}}`, validTok)
 	wcRes, err := HandleWebChannelMessage(msgJSON)
-	if err != nil || wcRes.SessionToken != validTok || wcRes.Email != "Alice@Example.com" || wcRes.ReplyJS == "" {
+	if err != nil || wcRes.SessionToken != validTok || wcRes.Email != "Alice@Example.com" || wcRes.ReplyJS != "" {
 		t.Fatalf("HandleWebChannelMessage failed: %+v err=%v", wcRes, err)
+	}
+
+	statusMessage := `{"id":"account_updates","message":{"command":"fxaccounts:fxa_status","messageId":"s1","data":{}}}`
+	statusRes, err := HandleWebChannelMessage(statusMessage)
+	if err != nil || statusRes.ReplyJS == "" ||
+		strings.Contains(statusRes.ReplyJS, "clientId") ||
+		!strings.Contains(statusRes.ReplyJS, `"capabilities":{}`) {
+		t.Fatalf("fxa_status reply should match the Android WebChannel response: %+v err=%v", statusRes, err)
+	}
+	if !strings.Contains(statusRes.ReplyJS, "window.dispatchEvent") ||
+		!strings.Contains(statusRes.ReplyJS, "document.dispatchEvent") {
+		t.Fatal("WebChannel reply should be dispatched on both window and document")
 	}
 
 	// 3. External Browser OAuth 2.0 + PKCE loopback anti-forgery & anti-duplicate tests
