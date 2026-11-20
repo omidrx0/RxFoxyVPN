@@ -56,7 +56,7 @@ https://YOUR-WORKER.YOUR-ACCOUNT.workers.dev/?secret=YOUR_SECRET&health=1
 باید این جواب رو ببینی:
 
 ```json
-{"relay":"rxfoxyvpn","version":1,"ready":true}
+{"relay":"rxvpn","version":1,"ready":true}
 ```
 
 این بررسی فقط از خود ورکر جواب می‌گیره و درخواستی به موزیلا نمی‌فرسته.
